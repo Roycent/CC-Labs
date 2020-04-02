@@ -22,3 +22,7 @@
     - 没联网
     - 没有关闭swap
     - 没有关闭防火墙或没有正确设置防火墙规则
+- 在进行“故障转移”一节实验时，节点状态变为了`NotReady`，但Pod状态一直是`Running`
+  - 目前没有很好的解决办法。对于这个情况，不少用户提出了Issue，比如[Issue #85895](https://github.com/kubernetes/kubernetes/issues/85895)、[Issue #82958](https://github.com/kubernetes/kubernetes/issues/82958)等等。Issue区也有评论说Node节点数量大于1时会解决这个问题。**如果你遇到了这个问题，可以直接跳过本节实验**。如果你找到了解决方法，请向助教提出，如果可行会有bonus
+- 在“暴露端口”一节中，应用yaml文件报错
+  - yaml文件有误，已经更正
