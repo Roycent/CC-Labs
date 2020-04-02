@@ -766,8 +766,12 @@ Commercial support is available at
       spec:
         containers:
         - name: nginx
-          image: nginx:1.16
+          image: softbuaa/nginx:1.16
   ```
+
+此时尝试访问Nginx主页，会看到版本提示。
+
+> 注意：使用的镜像并不是官方原版镜像，而是修改了默认的index.html后的镜像。访问Nginx主页，既可以自己创建一个service进行访问，也可以查看pod的IP后直接在虚拟机上使用curl访问。
 
 使用`kubectl create -f nginx-deploy.yaml`，由于`replicas`为3，因此会创建三个Pod
 
@@ -781,7 +785,7 @@ nginx-5dc5b64675-tvckw    1/1     Running   0          7s
 
 - 通过配置文件更新：
   
-  在刚刚的配置文件中将镜像修改为`nginx:1.17`，然后在`spec`中添加滚动升级策略，改动后如下
+  在刚刚的配置文件中将镜像修改为`softbuaa/nginx:1.17`，然后在`spec`中添加滚动升级策略，改动后如下
 
   ```yaml
   apiVersion: extensions/v1beta1
@@ -803,7 +807,7 @@ nginx-5dc5b64675-tvckw    1/1     Running   0          7s
       spec:
         containers:
         - name: nginx
-          image: nginx:1.17
+          image: softbuaa/nginx:1.17
   ```
 
 - minReadySeconds:
@@ -851,7 +855,9 @@ Image:          nginx:1.17
 ...
 ```
 
-其中image的信息已经得到改动了
+其中image的信息已经得到改动了。
+
+此时再次尝试访问Nginx主页，会看到版本已经变化。
 
 - 回滚Deployment
 
