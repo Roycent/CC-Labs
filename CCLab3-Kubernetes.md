@@ -682,8 +682,8 @@ metadata:
   labels:
     run: nginx-test
 spec:
+  type: NodePort
   ports:
-  type: nodePort
   - port: 80
     #targetPort: 80
     nodePort: 32180
