@@ -904,9 +904,9 @@ Kubernetes提供了两种储存介质，它们是Volume和Persistent Volume。�
   - hostPath(Persistent Volume)
   - nfs(Persistent Volume)
 
-- 使用Persistent Volume(PV)
+#### 使用hostPath
 
-使用hostPath，将主机中的/home/storage目录挂载到容器中，Pod执行完毕后，主机的`/home/storage`目录下将有`test.txt`文件
+使用hostPath，将容器的`/storage`目录挂载到容器所在主机的`/home/storage`目录下
 
 ```yaml
 apiVersion: v1
@@ -916,26 +916,96 @@ metadata:
 spec:
   containers:
     - name: busybox
-      image: busybox
+      image: registry.cn-hangzhou.aliyuncs.com/google_containers/busybox:1.24
       volumeMounts:
         - name: storage
-          mountPath: /storage
+          mountPath: /storage #将容器的 /storage 目录作为挂载点
       args:
         - /bin/sh
         - -c
         - echo "test file" > /storage/test.txt
+  restartPolicy: "Never"
   volumes:
     - name: storage
       hostPath:
-        path: /home/storage
+        path: /home/storage # 挂载到主机的 /home/storage目录下
 ```
 
 >- volumeMounts: container中需要被mount的目录
 >- volumes: 根据name来对应container中的volumeMounts并选择mount到本地的路径
 
-使用PV和PVC，两者的关系为：PV用于定义存储，而PVC用于向已有存储申请存储空间
+使用`kubectl get pod -o wide`可查看pod所在主机，进入主机查看`/home/storage`下的文件
+
+```command
+$ ls /home/storage
+test.txt
+
+$ cat /home/storage/test.txt
+test file
+```
+
+hostPath的缺点为若使用一个pod需要跨主机到另外一台主机上重建，数据将会丢失，这时我们需要PersistentVolume来进行持久化
+
+#### 使用PV和PVC
+
+两者的关系为：PV用于定义存储，而PVC用于向已有存储申请存储空间
 
 用nfs来实现PV比较容易，因此用nfs来做实例
+
+>- nfs:网络文件系统（英语：Network File System，缩写作 NFS）
+
+nfs需要一个server端，一个client端，对于实验的Kubernetes集群来说，可将Master节点作为server同时为client(因为设置了Master节点开启工作负载)，其他所有从节点为client。
+
+- 在nfs服务器上安装nfs-kernel-server
+  `$ apt install nfs-kernel-server`
+  首先创建一个用于存放数据的文件夹
+  `$ mkdir /data`
+  接下来修改nfs的配置文件
+
+  ```command
+  $ vim /etc/exports
+
+  #添加如下内容
+  /data *(rw,sync,no_root_squash)
+  ```
+
+  其中：
+
+  >
+  >   - /data：   共享的目录
+  >   - \* ：   谁可以访问(这里设置为所有人能访问)
+  >   - (rw,sync,no_root_squash): 权限设置
+  >     - rw: 能读写
+  >     - sync: 同步
+  >     - no_root_squash: 不降低root用户的权限(不安全，不过本次实验选择这样做更方便)
+
+  重启nfs服务：
+  `$ service nfs-kernel-server restart`
+
+- 在**所有节点**安装nfs-common
+
+  `$ apt install nfs-common`
+
+  安装好后可使用如下指令查看是否能看到nfs服务器的挂载点(x.x.x.x为nfs服务器的ip地址)
+
+  ```command
+  $ showmount -e x.x.x.x
+  Export list for x.x.x.x:
+  /data *
+  ```
+
+  这时候说明已经能够访问到这个挂载点了，使用以下指令将挂载点挂载到本地的`/mnt`路径下(x.x.x.x同样为nfs服务器地址)
+
+  `$ mount x.x.x.x:/data /mnt`
+
+  无提示则说明挂载成功，此时在nfs客户端上进行测试
+  
+  `$ cd /mnt`
+  `$ touch success`
+
+  若看到nfs服务器上`/data`目录中出现`success`文件，则说明nfs已经部署成功，将集群所有机器都进行挂载(包括服务器本机)，在一个挂载点删除后，所有客户端和服务器也会同步删除
+
+准备好nfs环境后，创建PersistentVolume(pv)
 
 ```yaml
 apiVersion: v1
@@ -950,27 +1020,27 @@ spec:
   persistentVolumeReclaimPolicy: Retain
   storageClassName: nfs
   nfs:
-    path: /nfsdata/pv1 #要mount到的路径
-    server: 10.251.0.0 #nfs服务器ip
+    path: /data #要mount到的路径
+    server: x.x.x.x #nfs服务器ip
 ```
 
-- accessModes:
-  - ReadWriteOnce -- PV能以read-write模式mount到单个节点
-  - ReadOnlyMany  -- PV能以read-only模式mount到多个节点
-  - ReadWriteMany -- PV能以read-write模式mount到多个节点
-- persistentVolumeReclaimPolicy
-  - Retain  -- 需要管理员手工回收
-  - Recycle -- 清除PV中的数据，效果相当于执行`rm -rf /thevolume/*`
-  - Delete  -- 删除Storage Provider上的对应存储资源
-- nfs
-  - path的路径要存在，若不存在，Pod无法正常运行，请提前手动创建好(动态pv无需手动创建)
+>- accessModes:
+>   - ReadWriteOnce -- PV能以read-write模式mount到单个节点
+>   - ReadOnlyMany  -- PV能以read-only模式mount到多个节点
+>   - ReadWriteMany -- PV能以read-write模式mount到多个节点
+>- persistentVolumeReclaimPolicy
+>   - Retain  -- 需要管理员手工回收
+>   - Recycle -- 清除PV中的数据，效果相当于执行`rm -rf /thevolume/*`
+>   - Delete  -- 删除Storage Provider上的对应存储资源
+>- nfs
+>   - path的路径要存在，若不存在，Pod无法正常运行，请提前手动创建好(动态pv无需手动创建)
 
-按照上述yaml文件创建PV后
+使用指令`kubectl create -f <filename>`按照上述yaml文件创建PV后
 
 ```command
 $ kubectl get pv
 NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
-nfspv   1Gi        RWO            Retain           Available           nfs                     3s
+nfspv  1Gi        RWO            Retain           Available           nfs                     3s
 ```
 
 接下来创建PVC
@@ -1000,6 +1070,8 @@ NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM            STO
 nfspv   1Gi        RWO            Retain           Bound    default/nfspvc   nfs                     82m
 ```
 
+发现pvc已经和pv绑定了，因为Kubernetes将查找满足申领要求的pv，并将pvc绑定到具有相同StorageClass的适当的pv上
+
 接下来在裸Pod中使用PVC
 
 ```yaml
@@ -1018,7 +1090,7 @@ spec:
       - "touch /mnt/SUCCESS && exit 0 || exit 1"
     volumeMounts:
       - name: nfs-pvc
-        mountPath: "/mnt"
+        mountPath: "/mnt" #此处为容器内的被挂载点，根据pv中的设置，将这个目录直接挂载到nfs服务器的/data目录下
   restartPolicy: "Never"
   volumes:
     - name: nfs-pvc
@@ -1026,14 +1098,26 @@ spec:
         claimName: nfspvc
 ```
 
-使用busybox来执行一段语句，在需要mount的路径下新建一个名为**SUCCESS**的文件
+这个pod使用busybox来执行一段语句，在需要mount的路径下新建一个名为**SUCCESS**的文件。创建好pod后，等待pod的Status变为`Completed`之后，查看所有`/mnt`文件夹以及`/data`文件夹
 
 ```command
-root@nfs:/nfsdata/pv1# ls
+$ kubectl get pod
+NAME                  READY   STATUS      RESTARTS   AGE
+test-pod              0/1     Completed   0          10s
+#pod已经完成，查看被挂载以及挂载目录
+
+#nfs-server:
+$ ls /data
+SUCCESS
+
+#nfs-client
+$ls /mnt
 SUCCESS
 ```
 
-通过busybox创建文件已经通过pv存储在了nfs服务器中。
+通过busybox创建文件已经通过pv存储在了nfs服务器中，并同步到了各个客户端的挂载点上。
+
+实际上，只需要nfs服务器即可达到实验效果，使用客户端可加深对nfs的理解。
 
 - 动态PV
 
@@ -1060,6 +1144,8 @@ SUCCESS
 
       > Tips:
       >
+      > 可以通过`kubectl exec -it <podName> -- bash`进入Pod内部
+      > 要创建的文件位于`/usr/share/nginx/html/service.html`
       >容器内并未安装文本编辑器，可以通过`echo`和`cat`命令对`service.html`进行编辑，如
       >
       > ```command
@@ -1076,7 +1162,7 @@ SUCCESS
       > EOF
       > ```
 
-  - 尝试使用滚动更新，对比前后主页版本 (**注意浏览器缓存影响**)
+  - 尝试使用滚动更新，对比前后主页版本 (可以自行创建Service通过代理访问网页，也可以直接curl ClusterIP访问。**注意浏览器缓存影响，学校的网页代理也会保存一段时间的缓存**)
 - 部署持久化服务
   - 在集群中部署nfs环境
   - 创建pv和pvc
