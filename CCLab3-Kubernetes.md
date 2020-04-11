@@ -547,10 +547,10 @@ metadata:
     run: nginx-test
 spec:
   ports:
-  # type: nodePort
+  # type: NodePort
   - port: 80
     #targetPort: 80
-    nodePort: 32180
+    #nodePort: 32180
     protocol: TCP
     #name: http
   selector:
