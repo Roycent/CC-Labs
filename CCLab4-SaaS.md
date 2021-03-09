@@ -63,23 +63,88 @@ Guacd Server是运行Guacd进程的服务器，在本实验中，我们使用Gua
 
 #### 环境要求
 
-- Windows Server服务器（本实验中使用Windows Server2019）
-  - Remote App功能需要服务器加入域
+- Windows Server服务器（推荐使用Windows Server2016或更新版本，本实验中使用Windows Server2019）
+- 服务器需要加入域（本实验中，Windows服务器会直接作为域控制器）
 
+#### 配置过程
+
+由于发布Remote App需要服务器加入域，因此我们先配置域相关的功能。
+
+- 打开服务器管理器，选择添加角色或功能
+- 选择基于角色或功能的安装
+- 选择当前服务器
+- 选择AD域服务并确定
+- 依次下一步
+- 将服务器设置为域控制器，点击上方警告后的“更多”
+- 点击上方消息后的“将此服务器提升为域控制器”
+- 填写根域名，由于不会使用到，实际上可以随意填写
+- 设置还原密码
+- 此处警告可忽略
+- 使用默认值即可
+- 依次下一步，并点击安装
+- 等待安装结束，域部分的配置到此结束。
+
+---
+
+配置Remote App相关的远程桌面功能。
+
+- 打开服务器管理器，选择添加角色或功能，选择远程桌面服务安装
+- 类型选择快速启动
+- 选择基于会话的桌面部署
+- 选择本地服务器
+- 将需要时重启选项打勾，并点击部署
+- 部署成功后会自动重启
+- Windows Server基础配置到此结束。
+
+详细配置过程可参考[此处的文档](/Win_Details.md)
+
+#### 发布Remote App
+
+配置结束并重启后，服务器管理器中左侧会新增“远程桌面服务”。在远程桌面服务-QuickSessionCollection中，可以查看RemoteApp程序。点击RemoteApp程序右侧的“任务”，可以选择发布服务器上已安装的应用（默认会添加画图、计算器、写字板三个应用，图中的计算器是手动又添加的）。
+
+![win_ok](img/win/ok.png)
 
 ### 配置Guacamole
 
-#### 使用Docker部署Guacamole
+在本实验中，为了简化部署流程，使用Docker容器来部署Guacamole相关服务。需要使用guacd、guacamole、MySQL三个镜像。其中，MySQL容器已在Docker部分实验创建，在本实验中 可以直接使用。
 
-需要使用guacad、guacamole、MySQL三个镜像。
-`docker pull guacamole/guacad`
-
-数据库初始化
-
-进入
-
-root@1fa4d4fb5dba:/# mysql -uroot -p@buaa21 -Dguacamole < initdb.sql
+- 拉取Guacamole镜像
+  `docker pull guacamole/guacd`
+  `docker pull guacamole/guacamole`
+- 启动guacd容器
+  `docker run --name some-guacd -d -p 4822:4822 guacamole/guacd`
+  > 在本次实验中，此处的端口映射也可以省略，因为之后我们会用 "--link"来将guacd与guacamole连接。
+- 获取数据库脚本
+  `docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --postgres > initdb.sql`
+  > 在启动Guacamole服务前，要先初始化Guacamole的数据库。注意，这个数据库脚本不会创建数据库，要手动创建database
+- 将数据库脚本复制到容器中
+  `docker cp /root/initdb.sql mysql:/`
+- 进入容器、创建数据库（略），执行数据库脚本
+  `mysql -uroot -p@buaa21 -Dguacamole < initdb.sql`
+- 启动guacamole容器
+  `docker run --name some-guacamole --link some-guacd:guacd --link some-mysql:mysql -e MYSQL_DATABASE=guacamole_db  -e MYSQL_USER=guacamole_user  -e MYSQL_PASSWORD=some_password -d -p 8080:8080 guacamole/guacamole`
+  > 其中，`--link`指定的MySQL容器及guacd容器名替换成本地相应的容器名。MySQL的数据库名、用户名及密码也替换成相应的用户名及密码。
 
 #### 使用Tomcat部署Guacamole
 
+（略）
+
 ### 验证
+
+访问运行着Guacamole服务的Docker服务器的8080端口，即可打开Guacamole界面。默认的用户名及密码均为`guacadmin`。
+
+![guacamole_web](img/guacamole_web.png)
+
+登录后，点击右上角设置，在打开的页面中选择“连接”选项卡，可以新建连接。
+
+在本实验中，需要填写或更改一下连接选项：
+
+- 名称：自定义名称即可
+- 协议：选择`RDP`
+- 参数-网络：`主机名`填写Windows服务器IP地址，`端口`填写3389
+- 参数-认证：`用户名`及`密码`填写Windows服务器的用户名及密码，**并勾选`忽略服务器证书`选项**
+- 参数-RemoteApp：`程序`填写RemoteApp的别名，即上文“发布RemoteApp”一节附图中红框中的部分。**别名前要加"||"，如，要访问画图应用，此处填写`||画图`**
+
+保存连接后回到首页，点击刚刚新建的连接，会直接打开远程服务器上相应的应用。
+
+![guacamole_remoteapp](img/guacamole_remoteapp.png)
