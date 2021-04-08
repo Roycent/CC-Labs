@@ -48,3 +48,7 @@
 ### [实验三 Kubernetes的基本使用](/CCLab3-Kubernetes.md)
 
 ### [Kubernetes常见问题解答](/FAQ.md)
+
+## Contribution
+
+如果你发现了本仓库中的任何问题（typo、无效链接、知识性错误等等），欢迎提Issues和PR。
