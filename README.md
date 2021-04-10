@@ -8,7 +8,7 @@
 
 ### 访问云平台
 
-可以通过[北航软件学院云平台-VPN入口1](https://cloud-beihangsoft-cn.e1.buaa.edu.cn/)或者[北航软件学院云平台-VPN入口2](https://cloud-beihangsoft-cn.e2.buaa.edu.cn/)（`https://cloud-beihangsoft-cn.e1.buaa.edu.cn/` 或者 `https://cloud-beihangsoft-cn.e2.buaa.edu.cn/`）直接登录。如果访问其中一个地址响应较慢，可以更换为另一个。
+可以通过[北航软件学院云平台](https://scs.buaa.edu.cn/)直接登录。
 
 ### 获取虚拟机
 
@@ -16,7 +16,8 @@
 
 ### 登录虚拟机
 
-通过[资源访问VPN](https://d.buaa.edu.cn/) `https://d.buaa.edu.cn`来访问实验虚拟机。选择“ssh”，输入虚拟机IP地址即可。
+- 使用SSH（终端直接使用SSH，或使用SSH客户端）登录虚拟机。注意，实验虚拟机只能在校内访问。
+- 通过[资源访问VPN](https://d.buaa.edu.cn/) `https://d.buaa.edu.cn`来访问实验虚拟机。选择“ssh”，输入虚拟机IP地址即可。
 
 ---
 
