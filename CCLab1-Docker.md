@@ -142,65 +142,105 @@ Docker是一个更上层、功能更全面的容器引擎，它建构在containe
 
 > **分发给大家的虚拟机已经安装好了Docker，使用实验虚拟机进行实验无需进行本步操作。**
 
-为了后续实验不会碰到太多问题，尽管Docker同样可以以某些方式安装在Windows系统上，但我们不采取这种方式；同理，也不在WSL中安装。
+如前所述，在Windows和macOS上运行Docker容器的方法是借助虚拟机实现的，因此，如果想在本地使用Docker的话，建议安装在本地的Linux虚拟机中进行；当然你可以使用Docker官网提供的Docker Desktop，但可能会遇到一些莫名其妙的问题。
 
->根据[Docker官方文档](https://docs.docker.com/install/)，docker支持Ubuntu 16.04(LTS)或更新版本、CentOS 7等版本的操作系统。其他Linux发行版请到docker官方文档查看是否支持。
+**请务必仔细阅读[Docker官方文档](https://docs.docker.com/engine/install/)来完成安装。** 下面仅给出简单的操作步骤。
 
-32位系统可能会带来额外的工作量以及其它未知的问题。
+#### 使用脚本安装
+
+> 推荐使用此种安装方式
+
+```bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+#### 从仓库中安装
 
 - 更新已有的包，避免之后出现问题  `sudo apt-get update`
+
 - 安装所需组件 `apt-get install apt-transport-https ca-certificates curl software-properties-common -y`
+
 - 添加Docker源
   
-  ```command
+  ```bash
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
   add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
   apt update
   ```
 
-- 安装Docker(注：为了与之后的Kubernetes兼容，需要手动指定Docker版本)
-  `apt install docker-ce=18.06.3~ce~3-0~ubuntu`
+- 安装Docker
+
+  ```bash
+  apt install docker-ce
+  ```
+
 - 验证Docker是否成功安装
-  `docker -v`
-  `Docker version 18.06.3-ce, build d7080c1`
-- 至此，Docker安装完毕
+
+  ```bash
+  docker -v
+  Docker version 18.06.3-ce, build d7080c1
+  ```
+
+#### 允许非root用户访问
+
+默认情况下，只有root用户才有权限访问Docker引擎。如果你想让非root用户也可以使用Docker，需要将用户加入`docker`用户组：
+
+```bash
+sudo usermod -aG docker <your-user>
+```
+
+这一操作一般需要用户注销后重新登录才会生效。
 
 ### Docker的基本使用
 
 #### 第一个Docker应用
 
-> 本节以安装、运行一个Docker的UI管理平台为例。如果下载速度较慢，参见下一节末尾更换镜像源的方法。
+> 本节以安装、运行一个Docker的UI管理平台为例。
 
-- 下载镜像
-  `docker pull portainer/portainer`
-  - 成功后会显示`{dockerid}: Pull complete`,其中{dockerid}为镜像在本地的ID
-- 查看镜像列表
-  `docker images`
+- 下载镜像 `docker pull docker.scs.buaa.edu.cn/portainer/portainer`，成功后会显示`{docker_id}: Pull complete`,其中`{docker_id}`为镜像在本地的ID。
 
-    ```command
-    root@roycent-Ali2:~# docker images
-    REPOSITORY            TAG                 IMAGE ID            CREATED             SIZE
-    portainer/portainer   latest              ff4ee4caaa23        2 months ago        81.6MB
-    ```
+  ```
+  root@ubuntu:~# docker pull docker.scs.buaa.edu.cn/portainer/portainer
+  Using default tag: latest
+  latest: Pulling from portainer/portainer
+  94cfa856b2b1: Pull complete
+  49d59ee0881a: Pull complete
+  a2300fd28637: Pull complete
+  Digest: sha256:e65d695a05c6b0c9e6fb825e0b13ae92e7fe3f4673fe2aba247ca4b585952be7
+  Status: Downloaded newer image for docker.scs.buaa.edu.cn/portainer/portainer:latest
+  docker.scs.buaa.edu.cn/portainer/portainer:latest
+  ```
+
+- 查看镜像列表  `docker images` 或 `docker image ls`
+
+  ```
+  root@ubuntu:~# docker image ls
+  REPOSITORY                                   TAG       IMAGE ID       CREATED         SIZE
+  docker.scs.buaa.edu.cn/portainer/portainer   latest    580c0e4e98b0   3 weeks ago     79.1MB
+  ```
   
 > **注意**
 >
 > 实验虚拟机中可能已经有了一些其他的镜像，这些镜像在之后的实验中会用到，**不要**删除这些镜像，也不要修改、运行。
 
 - 启动容器运行该镜像
-  `docker run -d -p 9000:9000 -p 8000:8000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v`
-  `portainer_data:/data portainer/portainer`
+  `docker run -d -p 9000:9000 -p 8000:8000 --name portainer --restart always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer`
 - 现在，该管理平台已经运行在docker中，可以通过9000端口进行访问并设置密码。
+
     ![docker_web](img/docker_web.png)
+
 - 连接方式选择`local`
+
     ![docker_web2](img/docker_web2.png)
-- 在主机中查看容器列表
-  `docker container ls`或`docker ps`  
+
+- 在主机中查看容器列表 `docker container ls` 或 `docker ps`  
+
   > 注意：`docker ps`命令只会显示正在运行的容器，若想查看所有容器，则要使用`docker ps -a`命令
 
-  ```command
-    CONTAINER ID        IMAGE                 COMMAND             CREATED             STATUS              PORTS                                            NAMES
-    1e30cc274e74        portainer/portainer   "/portainer"        About an hour ago   Up About an hour    0.0.0.0:8000->8000/tcp, 0.0.0.0:9000->9000/tcp   portainer
+  ```
+  CONTAINER ID   IMAGE                                        COMMAND                  CREATED          STATUS          PORTS                                            NAMES
+  fcab4844be6d   docker.scs.buaa.edu.cn/portainer/portainer   "/portainer"             30 seconds ago   Up 29 seconds   0.0.0.0:8000->8000/tcp, 0.0.0.0:9000->9000/tcp   portainer
   ```
 
 >注意：
@@ -208,17 +248,31 @@ Docker是一个更上层、功能更全面的容器引擎，它建构在containe
 > - 如果使用云服务器，请检查服务器防火墙设置（包括操作系统防火墙，以及云服务提供商的防火墙）。并且不推荐将端口设置为80、443等HTTP默认端口，在未备案的情况下，云服务提供商一般不会提供这两个端口的HTTP访问。
 > - 如果使用本地虚拟机，本地访问时直接使用虚拟机IP即可。跨设备访问（比如使用另一台电脑/手机访问）时，需要将网络设置为NAT模式，访问时需访问物理机的IP及NAT设置的端口。
 
-下面，我们将以刚刚下载镜像并启动第一个容器的命令为例，说明`docker`命令的基本用法。
+下面，我们将以刚刚下载镜像并启动第一个容器的命令为例，说明 `docker` 命令的基本用法。
 
 #### docker pull
 
 > [*Docker Hub*](https://hub.docker.com)是Docker官方维护的公共镜像仓库，现在已经有了超过300万个镜像。它的功能与*Github*类似，你可以将自己的Docker上传至*Docker Hub*分享给其他人，也可以下载使用其他人的开源Docker镜像，避免重复造轮子。
 
 用法：
+
 `docker pull [OPTIONS] NAME[:TAG|@DIGEST]`
 
-与`git pull`类似，`docker pull`后添加需要下载的镜像名即可将镜像下载至本地。一般地，镜像名格式为`{作者名}/{镜像名}`，例如本例中使用的portainer。对于其他部分常用的操作系统（如CentOS）、编程语言运行时（如Java）、数据库（如MySQL）等，Docker官方提供了一系列官方镜像存储库（*Docker Official Images*）。在下载这些存储库时，无需添加作者名，直接添加镜像名即可（尽管它们实际上也在`library`名下），如`docker pull mysql`。
-如果一个镜像存在着多种版本，则在镜像名后用`:`分隔添加版本号，如`docker pull mysql:8`。不添加TAG时，则默认使用latest，拉取最新版本的镜像。
+与`git pull`类似，`docker pull`后添加需要下载的镜像名即可将镜像下载至本地。一般地，镜像名完整格式为`{镜像仓库地址}/{用户名}/{镜像名}:TAG`。
+
+例如本例中使用的 `docker.scs.buaa.edu.cn/portainer/portainer` ，其中：
+
+- `docker.scs.buaa.edu.cn`为进行仓库地址，用来告诉docker去哪里pull这个镜像；
+
+- 第一个`portainer`表示用户名，即这个镜像是属于谁的；
+
+- 第二个`portainer`表示镜像的名称；
+
+- 最后，我们还可以使用`TAG`来指定需要获取的镜像的版本，但在`docker.scs.buaa.edu.cn/portainer/portainer`没有指定，那么默认`TAG`为`latest`。即`docker pull docker.scs.buaa.edu.cn/portainer/portainer` 与 `docker pull docker.scs.buaa.edu.cn/portainer/portainer:latest` 是等价的。
+
+同样地，镜像仓库地址和用户名也都是可以省略的，如果省略镜像仓库地址，那么默认为`docker.io`；如果用户名省略，那么默认为`library`。总之，下面两种写法是等价的：`docker pull ubuntu` 和 `docker pull docker.io/library/ubuntu:latest`。
+
+对于其他部分常用的操作系统（如CentOS）、编程语言运行时（如Java）、数据库（如MySQL）等，Docker官方提供了一系列官方镜像存储库（*Docker Official Images*）。在下载这些存储库时，无需添加作者名，直接添加镜像名即可（尽管它们实际上也在`library`名下），如`docker pull mysql`。
 
 > 由于*Dokcer Hub*服务器速度受限，在下载较大镜像时速度很慢，因此最好使用国内的Docker镜像源。执行如下命令即可更换Docker镜像源并重启Docker：
 >
@@ -282,8 +336,8 @@ mysql/mysql-server                Optimized MySQL Server Docker images. Create�
 >本节使用MySQL容器为例，在学习`exec`命令前要拉取并运行MySQL容器：
 >
 >```command
->docker pull mysql
->docker run -d -e MYSQL_ROOT_PASSWORD=@buaa21 -p 8006:3306 --name mysql mysql
+>docker pull docker.scs.buaa.edu.cn/library/mysql
+>docker run -d -e MYSQL_ROOT_PASSWORD=@buaa21 -p 8006:3306 --name mysql docker.scs.buaa.edu.cn/library/mysql
 >```
 
 `docker exec`命令用于在容器中执行命令。
@@ -391,7 +445,7 @@ mysql/mysql-server                Optimized MySQL Server Docker images. Create�
 - 编写Dockerfile
   
   ```Dockerfile
-  FROM nginx
+  FROM docker.scs.buaa.edu.cn/library/nginx
   RUN echo 'This is an Nginx running in a container built by me.' > /usr/share/nginx/html/index.html
   ```
 
@@ -456,7 +510,7 @@ mysql/mysql-server                Optimized MySQL Server Docker images. Create�
 
 - 运行构建的镜像
   - `docker run -p 8008:80 -d nginx:hello_docker`
-  >注意：不要将镜像的tag落下，否则运行的将是官方的空白Nginx镜像，而不是自己构建的镜像。
+  >注意：不要将镜像的tag落下，否则运行的将是不是自己构建的镜像。
 - 访问端口查看是否成功
   ![nginx](img/nginx.png)
 
