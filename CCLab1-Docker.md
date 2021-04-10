@@ -16,13 +16,123 @@
 
 ### 容器简介
 
-对于当今的绝大多数PaaS来说，容器（*container*）技术都是必不可少的底层技术之一。容器本质上是**受到资源限制、彼此相互隔离的**一组进程。相比于“容器”，container的另一个意思——集装箱更符合容器的含义。将货物装在统一的格式的集装箱中，能够层层堆叠，便于运输和管理。容器就是装载应用的集装箱。一方面，应用软件及其依赖的环境会安装到容器中，使得应用可以正常运行，服务可以正常提供；另一方面，容器之间又会有明确的边界，应用之间不会相互干扰。容器中没有独立的操作系统，而是都共享宿主机的操作系统内核，因此与虚拟机相比，容器十分轻量化。
+### 容器
 
-例如，容器中可以支持运行一个完整的Wordpress网站（包括php运行环境、MySQL等），而这个容器不会与宿主机的软件环境产生任何干扰（比如宿主机安装了另一个版本的php、MySQL）。同时，如果运行两个这样的容器，他们之间也不会相互产生干扰。
+对于当今的绝大多数PaaS来说，容器（*container*）技术都是必不可少的底层技术之一。容器本质上是 **受到资源限制、彼此相互隔离的** 一组进程。相比于“容器”，container的另一个意思——集装箱更符合容器的含义。将货物装在统一的格式的集装箱中，能够层层堆叠，便于运输和管理。容器就是装载应用的集装箱。一方面，应用软件及其依赖的环境（环境变量、库等）会集成到容器中，使得应用可以正常运行，服务可以正常提供；另一方面，容器之间又会有明确的边界，应用之间不会相互干扰。容器中没有独立的操作系统，而是都共享宿主机的操作系统内核，因此与虚拟机相比，容器十分轻量化。
 
-目前，常用的容器引擎/运行时有[Docker](https://www.docker.com/)、[RKT](https://coreos.com/rkt/)、[LXC](https://linuxcontainers.org/)等。Docker在2019年占据了83%份额的主导地位（尽管这一数字在前一年为99%），以至于在国内很多人用docker代指容器。常用的容器编排工具（*orchestrators*）有[Kubernetes](https://kubernetes.io/)（常简称为k8s，用数字8代替中间的8个字母）、[Mesos](http://mesos.apache.org/)、[Swarm](https://docs.docker.com/engine/swarm/)等。这些工具提供调度和管理容器或容器集群等功能。
+![](img/![](img/2021-04-10-12-48-47.png).png)
 
-接下来的实验中，我们将陆续学习Docker及Kubernetes的基本使用方法，最终构建出一个较完整的PaaS平台。
+举个例子，我们可以在宿主上同时运行两个相同镜像的容器，它们都是在一个ubuntu镜像上构建的Nginx服务器，我们给它们分别取名为`nginx1`和`nginx2`：
+
+```
+root@ubuntu:~# docker run --name nginx1 -d ubuntu/nginx
+56fee1b59ecafdf305d8eccf06041dbdcbf6466a281631a3d439f2a45d4f5c69
+root@ubuntu:~# docker run --name nginx2 -d ubuntu/nginx
+0d7a20b271d0cfb0d911e417f965da1aa59b02808886c12883339a06602048cc
+```
+
+紧接着，在宿主环境中使用`ps`查看进程的变化情况：
+
+```
+root@ubuntu:~# ps -ejf
+UID          PID    PPID    PGID     SID  C STIME TTY          TIME CMD
+
+......
+
+root     1384767       1 1384767    1083  0 13:00 ?        00:00:00 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 56fee1b59ecafdf305d8eccf06041dbdcbf6466a281631a3d439f2a45d4f5c6
+root     1384790 1384767 1384790 1384790  0 13:00 ?        00:00:00 nginx: master process nginx -g daemon off;
+www-data 1384852 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384853 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384854 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384855 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384856 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384857 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384858 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384859 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384860 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384861 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384862 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1384863 1384790 1384790 1384790  0 13:00 ?        00:00:00 nginx: worker process
+root     1384927       1 1384927    1083  0 13:00 ?        00:00:00 /usr/bin/containerd-shim-runc-v2 -namespace moby -id 0d7a20b271d0cfb0d911e417f965da1aa59b02808886c12883339a06602048c
+root     1384948 1384927 1384948 1384948  0 13:00 ?        00:00:00 nginx: master process nginx -g daemon off;
+www-data 1385006 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385007 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385008 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385009 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385010 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385011 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385012 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385013 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385014 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385015 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385016 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+www-data 1385017 1384948 1384948 1384948  0 13:00 ?        00:00:00 nginx: worker process
+
+......
+
+```
+
+显然，**与虚拟机不同，在宿主中我们可以清晰看到容器中启动了哪些进程** ：1个Nginx master进程和其生出的多个Nginx工作子进程。**和宿主中原来的进程一样，这些进程都会直接被宿主的内核调度，共享着宿主的CPU、内存、带宽等资源。** 值得注意的是，这两个Nginx master进程的父进程都是一个containerd相关进程。
+
+紧接着分别进入两个容器中，查看它们内部包含的进程：
+
+```
+root@ubuntu:~# docker exec -it nginx1 /bin/bash
+root@56fee1b59eca:/# ps -ejf
+UID          PID    PPID    PGID     SID  C STIME TTY          TIME CMD
+root           1       0       1       1  0 05:00 ?        00:00:00 nginx: master process nginx -g daemon off;
+www-data      19       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      20       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      21       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      22       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      23       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      24       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      25       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      26       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      27       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      28       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      29       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      30       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+root          49       0      49      49  1 05:16 pts/0    00:00:00 /bin/bash
+root          57      49      57      49  0 05:16 pts/0    00:00:00 ps -ejf
+```
+
+```
+root@ubuntu:~# docker exec -it nginx2 /bin/bash
+root@0d7a20b271d0:/# ps -ejf
+UID          PID    PPID    PGID     SID  C STIME TTY          TIME CMD
+root           1       0       1       1  0 05:00 ?        00:00:00 nginx: master process nginx -g daemon off;
+www-data      18       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      19       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      20       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      21       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      22       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      23       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      24       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      25       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      26       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      27       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      28       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+www-data      29       1       1       1  0 05:00 ?        00:00:00 nginx: worker process
+root          39       0      39      39  0 05:15 pts/0    00:00:00 /bin/bash
+root          48      39      48      39  0 05:15 pts/0    00:00:00 ps -ejf
+```
+
+与宿主中不同，在容器内部，我们只看到了几个光秃秃的Nginx进程，并且Nginx master进程无一例外都变成了容器的1号进程。这是因为容器成功的将容器内的进程与宿主中的进程、不同容器之间的进程进行了隔离，每个容器内的进程都只能看到同属于本容器的资源。
+
+Linux中容器的实现，依赖于Linux内核提供的namespace和cgroups能力。其中，namespace负责隔离不同容器之间的进程号、文件系统、网络等等，而cgroups负责限制容器内进程对资源（如CPU、内存等）的使用。对容器技术感兴趣的同学可以自行深入学习相关内容，这里就不详细展开了。
+
+同样地，因为容器本身只不过是宿主中的隔离起来的一组进程，与宿主共享内核，所以宿主只能运行与其内核相同的容器。比如，Linux上无法运行Windows容器，同样地，Windows或者macOS上如果想要运行Linux容器的话，必须借助虚拟机来进行，实际上，Docker Desktop也是这样做的。
+
+#### 容器运行时与Docker
+
+容器运行时（container runtime）指的是那些工作在底层的负责维护容器生命周期的程序，它们负责设置namespace和cgroups、执行相应命令以启动进程等等，这些程序包括[rkt](https://coreos.com/rkt/)、[lxc](https://linuxcontainers.org/)、[runc](https://github.com/opencontainers/runc)等等。上层的容器引擎一般以它们为基础，用来屏蔽不同系统的容器运行时的底层差异，提供更高级更易用的接口，典型的比如[containerd](https://containerd.io/)，它一般使用runc作为自己底层的容器运行时。
+
+![](img/2021-04-10-14-03-30.png)
+
+Docker是一个更上层、功能更全面的容器引擎，它建构在containerd之上，额外提供了容器的网络管理、存储卷，甚至集群管理等功能，并且提供了一套容器镜像标准和自定义容器镜像的工具，让容器技术变得更简单易用。因此，相比于其他底层技术，Docker更广为人知，甚至已经成为了“容器”的代名词。
+
+![](img/2021-04-10-14-15-41.png)
 
 ### Docker简介
 
