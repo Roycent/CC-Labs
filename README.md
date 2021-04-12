@@ -19,6 +19,12 @@
 - 使用SSH（终端直接使用SSH，或使用SSH客户端）登录虚拟机。注意，实验虚拟机只能在校内访问。
 - 通过[资源访问VPN](https://d.buaa.edu.cn/) `https://d.buaa.edu.cn`来访问实验虚拟机。选择“ssh”，输入虚拟机IP地址即可。
 
+### 通过认证连接网络
+
+- 使用curl命令
+  `curl -k -d "action=login&username=账号&password=密码&type=2&n=117&ac_id=1" "https://gw.buaa.edu.cn/cgi-bin/srun_portal"` 将其中的账号与密码替换为自己的校园网登录账号密码即可
+- 使用本仓库`other/beihangLogin`脚本
+  使用方法见[这里](how_to_use_beihanglogin.md)
 ---
 
 ## PaaS简介
