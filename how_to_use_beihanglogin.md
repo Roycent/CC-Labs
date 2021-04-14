@@ -1,6 +1,6 @@
 # 如何登录校园网
 
->登录脚本代码来自Github goomadao的[beihangLogin](https://github.com/goomadao/beihangLogin)项目，使用Go 1.14编译。
+>登录脚本代码来自Github goomadao的[beihangLogin](https://github.com/goomadao/beihangLogin)项目，这个项目已经被删除或私有，无法访问了。本仓库在[这里](/other)保存了一份当时使用Go 1.14编译该仓库代码的可执行文件。
 
 - 通过`d.buaa.edu.cn`登录虚拟机，此步骤省略
 - 点击上面的**文件管理**，依次打开`home`、`buaa`（当然，你也可以选择其他位置。为了方便这里放到了`~`文件夹中）。然后点击右上角的省略号，选择文件上传
