@@ -115,7 +115,7 @@ Guacd Server是运行Guacd进程的服务器，在本实验中，我们使用Gua
   `docker run --name some-guacd -d -p 4822:4822 guacamole/guacd`
   > 在本次实验中，此处的端口映射也可以省略，因为之后我们会用 "--link"来将guacd与guacamole连接。
 - 获取数据库脚本
-  `docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --postgres > initdb.sql`
+  `docker run --rm guacamole/guacamole /opt/guacamole/bin/initdb.sh --mysql > initdb.sql`
   > 在启动Guacamole服务前，要先初始化Guacamole的数据库。注意，这个数据库脚本不会创建数据库，要手动创建database
 - 将数据库脚本复制到容器中
   `docker cp /root/initdb.sql mysql:/`
