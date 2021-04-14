@@ -1,7 +1,5 @@
 # 云计算实验指南
 
-[toc]
-
 ---
 
 ## 如何进行实验
@@ -54,7 +52,7 @@
 
 ### [实验三 Kubernetes的基本使用](/CCLab3-Kubernetes.md)
 
-### [Kubernetes常见问题解答](/FAQ.md)
+### [常见问题解答](/FAQ.md)
 
 ## Contribution
 
