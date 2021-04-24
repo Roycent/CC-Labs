@@ -52,6 +52,8 @@
 
 ### [实验三 Kubernetes的基本使用](/CCLab3-Kubernetes.md)
 
+### [实验四 构建简易的SaaS平台](/CCLab4-SaaS.md)
+
 ### [常见问题解答](/FAQ.md)
 
 ## Contribution
