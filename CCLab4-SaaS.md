@@ -127,7 +127,7 @@ Guacd Server是运行Guacd进程的服务器，在本实验中，我们使用Gua
 
 #### 使用Tomcat部署Guacamole
 
-（略）
+略。建议使用容器方式部署。若想使用Tomcat部署，参考[官方文档](http://guacamole.apache.org/doc/gug/installing-guacamole.html)。
 
 ### 验证
 
