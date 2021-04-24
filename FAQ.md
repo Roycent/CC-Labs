@@ -2,6 +2,8 @@
 
 - 使用登录校园网脚本`login.sh`提示`password_algo_error`
   - 使用`beihangLogin`脚本，使用说明在[这里](/how_to_use_beihanglogin.md).
+- 使用`d.buaa.edu.cn`时，无法切换RDP/HTTP/SSH选项
+  - 清除浏览器缓存并强制刷新（比如Chrome的`ctrl+shift+R`）
 - 为什么有三台虚拟机？都要加入集群吗？
   - 实验要求**至少**两台虚拟机组成集群，第三台虚拟机为备用机。如果你对自己有信心，使用三台虚拟机组成集群会获得更好的实验效果。
 - 更改hostname后，执行sudo命令无反应
