@@ -34,11 +34,13 @@
 - 自我修复
 - 密钥与配置管理
 
->Kubernetes不仅支持Docker容器，还支持其他的容器，比如Rtk容器。
+> Kubernetes仅仅是一个容器编排和调度工具，其必须运行在“容器运行时（container runtime）”之上。Kubernetes定义了一套“容器运行时接口（CRI）”，凡是实现了这套接口的容器运行时都可以作为Kubernetes运行容器的后端。目前比较流行的有Containerd和CRI-O，从1.20版本开始，Kubernetes已经弃用Docker引擎作为容器运行时。
 
 ## Kubernetes架构、组件、重要概念
 
-在开始使用Kubernetes之前，为了更加顺畅地理解接下来的操作，有一些概念需要提前了解。本节仅解释最基本的概念，而不会讲解详细逻辑、底层架构、解决方案、设计思想等等。另外的一些重要概念，会在涉及到的时候进行补充。Kubernetes中的大部分概念，都可以被看作一种资源对象，几乎所有资源的对象都可以通过Kubernetes提供的kubectl工具（或者调用相应的API）来进行操作。
+在开始使用Kubernetes之前，为了更加顺畅地理解接下来的操作，有一些概念需要提前了解。本节仅解释最基本的概念，而不会讲解详细逻辑、底层架构、解决方案、设计思想等等。另外的一些重要概念，会在涉及到的时候进行补充。
+
+Kubernetes中的大部分概念，都可以被看作一种资源对象，我们对Kubernetes集群的各种操作，都可以看作是对各种资源进行增删改查的操作。
 
 ### Pod
 
@@ -76,159 +78,232 @@ Namespace用于将系统内部的对象划分为不同的组，实际上常用�
 
 Label是Kubernetes中另一个核心概念。一个标签是一个`key=value`的键值对，其中key与value都由用户自己制定。Label可以被附加到各种资源对象上，比如刚刚提到的Node、Controller、Service等。我们可以通过给指定的资源对象捆绑一个或多个不同的Label来实现多维度的资源分组管理功能，以便灵活、方便地进行资源分配、调度、配置、部署等管理工作。Label的最常见的用法便是通过spec.selector来指定Label，从而Kubernetes寻找到所有包含你指定Label的对象、进行管理。也就是我们刚刚在配置文件中的用法。
 
-## 安装Kubernetes
+## Kubernetes的安装
 
->**分发给大家的虚拟机已经安装好了Kubernetes并下载好了相关镜像。使用实验虚拟机进行实验无需进行本步操作**。下文会用`k8s`指代Kubernetes，二者为同一含义。并且在使用的命令中，有时会省略`sudo`或切换为`root`用户的操作，如无特殊提及，请按照实际情况选择是否使用`sudo`。从本节开始，**如无特殊说明，以`~$`开头的为命令，其他的为输出**。
+以下提供了几种部署Kubernetes集群的方式供大家根据自己的实际情况参考。
 
-需要注意的是，Kubernetes要求**CPU核心数至少为2**,每个版本的Kubernetes仅支持较少版本的Dokcer。因此，要使用CPU核心数足够的机器。在安装前，要**检查已安装的Docker版本和将要安装的Kubernetes版本是否兼容**，以免造成安装失败的情况。具体兼容/依赖情况可以在GitHub上的[Kubernetes Releases](https://github.com/kubernetes/kubernetes/releases)中，查看所需版本对应的Change Log。本节以使用两台2核心CPU、4G内存、已经安装了`Docker 18.06`的Ubuntu16.04虚拟机，安装部署`Kubernetes 1.13.2`为例。
+### 学习环境
 
-- 添加k8s安装源
-  
-  ```command
-  curl https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg | apt-key add -
-  cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
-  deb https://mirrors.aliyun.com/kubernetes/apt/ kubernetes-xenial main
-  EOF
-  ```
+在学习环境中，使用minikube或者Docker Desktop都是不错的选择，两者任选其一就好。
 
-- 安装指定版本的k8s
-`$ sudo apt update`
-`$ sudo apt install kubernetes-cni=0.6.0-00`
-`$ sudo apt install -y kubelet=1.13.2-00 kubeadm=1.13.2-00 kubectl=1.13.2-00`
+#### minikube
 
-> 由于使用的镜像源问题，kubernetes-cni这个依赖需要提前手动安装。同时，由于Kubernetes镜像存储在Google的服务器中而不是Docker Hub，所以我们需要下载Dokcer Hub上的相同镜像，并手动标记。
-> **注意：下载镜像时要选择所需要的版本**
+因为Kubernetes首先是一个集群，个人设备一般难以模拟真实的生产环境中的Kubernetes环境。在个人设备中，推荐使用[minikube](https://minikube.sigs.k8s.io/docs/start/)来体验、学习和使用Kubernetes集群。
 
-- 下载容器镜像文件并标记
+![](img/2021-05-10-14-40-09.png)
 
-  ```shell
-  docker pull mirrorgooglecontainers/kube-apiserver-amd64:v1.13.2
-  docker pull mirrorgooglecontainers/kube-controller-manager-amd64:v1.13.2
-  docker pull mirrorgooglecontainers/kube-scheduler-amd64:v1.13.2
-  docker pull mirrorgooglecontainers/kube-proxy-amd64:v1.13.2
-  docker pull mirrorgooglecontainers/pause:3.1
-  docker pull mirrorgooglecontainers/etcd-amd64:3.2.24
-  docker pull coredns/coredns:1.2.6
+minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以该虚拟机为唯一节点的单节点Kubernetes集群。
 
-  docker tag docker.io/mirrorgooglecontainers/kube-proxy-amd64:v1.13.2 k8s.gcr.io/kube-proxy:v1.13.2
-  docker tag docker.io/mirrorgooglecontainers/kube-scheduler-amd64:v1.13.2 k8s.gcr.io/kube-scheduler:v1.13.2
-  docker tag docker.io/mirrorgooglecontainers/kube-apiserver-amd64:v1.13.2 k8s.gcr.io/kube-apiserver:v1.13.2
-  docker tag docker.io/mirrorgooglecontainers/kube-controller-manager-amd64:v1.13.2 k8s.gcr.io/kube-controller-manager:v1.13.2
-  docker tag docker.io/mirrorgooglecontainers/etcd-amd64:3.2.24  k8s.gcr.io/etcd:3.2.24
-  docker tag docker.io/mirrorgooglecontainers/pause:3.1  k8s.gcr.io/pause:3.1
-  docker tag docker.io/coredns/coredns:1.2.6  k8s.gcr.io/coredns:1.2.6
-  ```
+![](img/2021-05-10-14-55-22.png)
 
-## 构建集群前的准备工作
+注意，上图中的Virtual Box的虚拟环境是可选的，默认情况下使用Docker引擎就足够了。
 
-本小节的准备工作要在**所有节点**上执行。
+一般来讲，minikube的安装和启动非常简单。只需要你安装好Docker之后（比如在macOS或Windows中，可以选择安装Docker Desktop），下载一个minikube的可执行文件，直接`minikube start`就好了。
 
-> 由于Kubernetes不支持`swap`，在安装前要将`swap`关闭。
+但是，minikube在初始化时，需要拉取一些容器镜像，而这些镜像的地址因为某些原因无妨被正常访问。所以，可以曲线救国，使用阿里云的镜像，具体可以参考[这篇文章](https://developer.aliyun.com/article/221687)。
 
-- 关闭swap
-  `$ sudo swapoff -a`
+更多内容和使用方法请参考minikube官方给出的[教程和使用手册](https://minikube.sigs.k8s.io/docs/start/)。
 
-> 为了方便辨认各个节点，更改hostname，同时将hostname加入`/etc/hosts`文件中。注意，hostname要重启终端（对于SSH用户来说即为重新登陆）才能在终端得以体现。
+#### Docker Desktop
 
-- 切换为root用户(**重要：不切换为root用户可能会带来问题。如果你真的没切换为root用户就更改了hostname，可以查看FAQ来获取解决办法。但是这么长一句写在实验手册里的话都没看到，可能你也不会去看FAQ，那么你就挂在了第一步。**)
-  `$ sudo su`
-- 更改hostname（选取其中一台为master节点，另一台为普通node节点，两台分别改为master和node并带上学号）
-  `$ sudo hostnamectl set-hostname k8s-master`
-- 更改hosts
-  `$ sudo vim /etc/hosts`
-  然后添加一行`127.0.0.1 k8s-master`或直接在已有的`127.0.0.1`后加入主机名
-- 切换回普通用户（可选）
-  `$ exit`
+如果在实验一中已经安装了Docker Desktop，那么可以直接使用Docker Desktop模拟启动一个Kubernetes集群。
 
->为了简化实验步骤，我们直接禁用防火墙。注意，在实际使用时（包括生产环境，也包括开发环境、自己的云主机等），请按需求设置防火墙规则。
+![](img/2021-05-10-15-02-36.png)
 
-- 关闭防火墙
-  - `$ sudo ufw disable`
+如上图所示，打开Docker Desktop的控制面板，按照操作提示来就好。也可以参考[这篇文章](https://birthday.play-with-docker.com/kubernetes-docker-desktop/)。
+
+### 生产环境
+
+Kubernetes本身包含各个组件，纯靠人力完成部署是一件非常艰苦的工作。索性Kubernetes官方提供了很多安装引导工具来帮助我们搭建集群。**下面的部署方式，大家任选其一就好。**
+
+#### Kubeadm
+
+Kubeadm是一个Kubernetes集群部署引导工具。
+
+> Kubeadm并不是Kubernetes集群的组成部分，它只是一个“外部工具”。
+
+使用Kubeadm的方式部署集群，主要分为以下三个步骤：
+
+- 在选定的master机器上[安装Kubeadm](https://kubernetes.io/zh/docs/setup/production-environment/tools/kubeadm/install-kubeadm/)这个二进制工具
+
+- 随后执行`kubeadm init`，初始化master机器（此时集群中只有一台master机器），详细[参考](https://kubernetes.io/zh/docs/setup/production-environment/tools/kubeadm/create-cluster-kubeadm/)
+
+- 在选定的node节点上，使用`kubeadm join`将该node节点加入集群
+
+虽然上述步骤并不复杂，官方文档也足够详细，但因为某种原因，上述安装过程中需要使用的各种资源在国内几乎都无法正常下载。各种曲线救国的解决方案只会徒增问题的复杂性。因此，不是很推荐大家使用这种方式创建集群。当然，有兴趣的同学可以自行尝试。
+
+实验课不是“环境部署课”，我们希望大家把精力更多地放在理解Kubernetes的核心概念上，而不是在环境部署方面浪费时间。因此，推荐使用下面的方式来完成Kubernetes集群的搭建。
+
+#### K3s
+
+[K3s](https://rancher.com/docs/k3s/latest/en/)是一个轻量的可用于生产环境的Kubernetes发行版，它默认使用Containerd作为容器运行时。在[K3s的GitHub主页](https://github.com/k3s-io/k3s)中，可以得到其详细的介绍。
+
+下面将详细介绍一下如何搭建一个K3s集群。
+
+## 准备工作
+
+在实验三和实验四中，云平台给大家提供了两台虚拟机。因此，我们本次实验中搭建的集群将包含一个master节点和一个node节点。
+
+### 修改hostname
+
+Kubernetes要求集群中的各个节点的hostname各不相同，而云平台分配的机器的hostname统一都是ubuntu，所以这里需要修改一下。
+
+分别登录两台机器，使用`hostnamectl`修改主机名：
+
+```bash
+sudo hostnamectl set-hostname ${new_name}
+```
+
+对于master节点，主机名格式为`k8s-master-${学号}`，对于node节点，主机名格式为`k8s-node-${学号}`。
+
+修改完之后，可以使用`hostname -f`查看一下是否修改成功。
+
+> 如果有强迫症，希望bash命令行前面的提示符也正常显示新的hostname，可以退出ssh，重新登录一下。
 
 ## 初始化master节点
 
-> 此处开始在master节点上执行
+云平台上的机器已经提前下载好了K3s所需的各种组件，直接使用k3s的安装脚本安装即可，并且，要选择**离线安装**的方式：
 
-- 使用kubeadm初始化master节点
-  `$ sudo kubeadm init --apiserver-advertise-address MY_MASTER_ADDRESS --pod-network-cidr=10.244.0.0/16 --kubernetes-version=1.13.2`
-  其中，`MY_MASTER_ADDRESS`要替换成自己master节点的IP。
-- 初始化中使用到的三个参数：
-  - `--apiserver-advertise-address`选择master节点与其他节点通信所使用的interface。
-  - `--pod-network-cidr`设置pod网络的范围。在此处我们使用了`10.244.0.0/16`这个范围，是因为在之后的过程中，我们会使用`flannel`配置网络，而`flannel`的默认配置文件中使用的就是这个范围。如果要更改使用其他网络方案或地址范围，此处要和之后配置网络时的配置文件一致。
-  - `--kubernetes=version`选择安装Kubernetes的版本。由于网络原因，我们使用的是提前下载好的镜像文件，因此此处要与之前下载的镜像版本相匹配。
-
-> 初始化失败的解决方法：
->
-> - 重置master节点
->   `$ sudo kubeadm reset`
-> - 重新运行之前的初始化命令，并添加`--v=6`参数来获得更详细的日志。
-
-- 成功安装后，会显示如下信息：
-  
-  ```command
-  Your Kubernetes master has initialized successfully!
-
-  To start using your cluster, you need to run the following as a regular user:
-
-  mkdir -p $HOME/.kube
-  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-  sudo chown $(id -u):$(id -g) $HOME/.kube/config
-
-  You should now deploy a pod network to the cluster.
-  Run "kubectl apply -f [podnetwork].yaml" with one of the options listed at:
-  https://kubernetes.io/docs/concepts/cluster-administration/addons/
-
-  You can now join any number of machines by running the following on each node
-  as root:
-
-  kubeadm join MASTER_IP_ADDRESS:6443 --token qpve0s.mea7by3vzoffier2 --discovery-token-ca-cert-hash sha256:368a6bdf9120d72cf1baf8872010a6b188ad56e7d21f6702e03b5180cdc86165
-  ```
-
-这部分信息十分贴心地提示了接下来要做的事情：配置`kubectl`、配置网络、添加其他节点。最后一行为添加其他节点时使用的命令，它包含了所需的token以及证书hash值。这些信息可以复制下来，因为在下一步就会用到。
-
-## 配置kubectl
-
-配置kubectl的过程很简单，将上一步初始化成功信息中的命令复制过来执行即可。**注意:不要使用root用户执行这些命令。**
-
-```command
-  mkdir -p $HOME/.kube
-  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```bash
+sudo INSTALL_K3S_SKIP_DOWNLOAD=true ./install.sh
 ```
 
-为了方便使用，可以设置`kubectl`的命令补全功能：
-`$ echo "source <(kubectl completion bash)" >> ~/.bashrc`
-`$ source ~/.bashrc`
+完成后，大概有如下输出：
 
-## 安装Pod网络
-
-Kubernetes支持多种网络方案，本小节选用flannel。在配置pod网络前，要使master节点处于连网状态。使用flannel提供的配置文件来配置网络：
-`$ sudo kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/62e44c867a2846fefb68bd5f178daf4da3095ccb/Documentation/kube-`
-`flannel.yml`
-
-如果因网络问题无法下载这个文件，可以将链接替换成 `http://dockerlab.roycent.cn/kube-flannel.yml`
-
-成功后会创建flannel网络：
-
-```command
-podsecuritypolicy.extensions/psp.flannel.unprivileged created
-clusterrole.rbac.authorization.k8s.io/flannel created
-clusterrolebinding.rbac.authorization.k8s.io/flannel created
-serviceaccount/flannel created
-configmap/kube-flannel-cfg created
-daemonset.extensions/kube-flannel-ds-amd64 created
-daemonset.extensions/kube-flannel-ds-arm64 created
-daemonset.extensions/kube-flannel-ds-arm created
-daemonset.extensions/kube-flannel-ds-ppc64le created
-daemonset.extensions/kube-flannel-ds-s390x created
+```
+buaa@k8s-master:~$ sudo INSTALL_K3S_SKIP_DOWNLOAD=true ./install.sh
+[sudo] password for buaa:
+[INFO]  Skipping k3s download and verify
+[INFO]  Skipping installation of SELinux RPM
+[INFO]  Creating /usr/local/bin/kubectl symlink to k3s
+[INFO]  Creating /usr/local/bin/crictl symlink to k3s
+[INFO]  Creating /usr/local/bin/ctr symlink to k3s
+[INFO]  Creating killall script /usr/local/bin/k3s-killall.sh
+[INFO]  Creating uninstall script /usr/local/bin/k3s-uninstall.sh
+[INFO]  env: Creating environment file /etc/systemd/system/k3s.service.env
+[INFO]  systemd: Creating service file /etc/systemd/system/k3s.service
+[INFO]  systemd: Enabling k3s unit
+Created symlink /etc/systemd/system/multi-user.target.wants/k3s.service → /etc/systemd/system/k3s.service.
+[INFO]  systemd: Starting k3s
 ```
 
-> 如果在初始化master时设置的网络范围不是flannel的默认范围`10.244.0.0/16`，则在此处要先下载配置文件，更改第127行的网络配置，以保持一致。
+使用`kubectl get node`可以看到已经master节点已经创建完成：
 
-## 添加其他节点
+```
+buaa@k8s-master:~$ sudo kubectl get node
+NAME         STATUS   ROLES                  AGE     VERSION
+k8s-master   Ready    control-plane,master   3m41s   v1.21.0+k3s1
+```
+
+## 将Node节点加入集群
+
+登录node节点，确认修改完hostname后，在node节点执行以下命令。注意，请将命令中的`myserver`替换成自己master机器的ip，并将`mynodetoken`替换成自己集群的token（这个token值可以在master机器的`/var/lib/rancher/k3s/server/node-token`中找到。同样，请注意指定离线模式：
+
+```bash
+sudo INSTALL_K3S_SKIP_DOWNLOAD=true K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken ./install.sh
+```
+
+完成后，大概有如下输出：
+
+```
+buaa@k8s-node:~$ sudo INSTALL_K3S_SKIP_DOWNLOAD=true K3S_URL=https://10.251.254.114:6443 K3S_TOKEN=K10bf9e0320c9073dfb7ce1ecbf116cdc8e58c755ef2a616cc98133d782dd3bb3f2::server:3777fd43d33dc8ff1b3cd321f41ccc24 ./install.sh
+[sudo] password for buaa:
+[INFO]  Skipping k3s download and verify
+[INFO]  Skipping installation of SELinux RPM
+[INFO]  Creating /usr/local/bin/kubectl symlink to k3s
+[INFO]  Creating /usr/local/bin/crictl symlink to k3s
+[INFO]  Creating /usr/local/bin/ctr symlink to k3s
+[INFO]  Creating killall script /usr/local/bin/k3s-killall.sh
+[INFO]  Creating uninstall script /usr/local/bin/k3s-agent-uninstall.sh
+[INFO]  env: Creating environment file /etc/systemd/system/k3s-agent.service.env
+[INFO]  systemd: Creating service file /etc/systemd/system/k3s-agent.service
+[INFO]  systemd: Enabling k3s-agent unit
+Created symlink /etc/systemd/system/multi-user.target.wants/k3s-agent.service → /etc/systemd/system/k3s-agent.service.
+[INFO]  systemd: Starting k3s-agent
+```
+
+回到mater机器上，可以再次使用`kubectl get node`查看node节点是否加入成功，以及两台机器是否都已经处于Ready状态：
+
+```
+buaa@k8s-master:~$ sudo kubectl get node
+NAME         STATUS   ROLES                  AGE     VERSION
+k8s-node     Ready    <none>                 4m39s   v1.21.0+k3s1
+k8s-master   Ready    control-plane,master   34m     v1.21.0+k3s1
+```
+至此，Kubernetes集群搭建完成。
+
+## kubectl
+
+对于一个部署好的Kubernetes集群，与之通信的方式有多种：
+
+![](img/2021-05-09-17-23-33.png)
+
+- kubectl，使用其可以直接在命令行中控制Kubernetes集群中的资源
+
+- Restful API
+
+- client-go等一系列SDK，通过这些官方或者第三方提供的各种编程语言的SDK，可以很轻松的通过代码控制Kubernetes集群，并在其上搭建各种有用有趣的程序
+
+在实验三和实验四中，我们主要使用kubectl来操控Kubernetes集群。实际上，在上一节集群的部署过程中，我们已经使用到了kubectl：`kubectl get node`。这个命令是在我们初始化master节点时自动附带安装的。
+
+kubectl的工作方式大致如下图所示：
+
+![](img/2021-05-10-20-42-28.png)
+
+可以看到，kubectl根本就不是Kubernetes集群的一部分。我们在前几节中使用kubectl时都”正好“是在Kubernetes集群中的master机器上。实际上，完全可以在另外随便一台机器上安装kubectl，然后使用它与Kubernetes集群通信，这样，我们就不用每次使用Kubernetes时都登录虚拟机了。
+
+### 安装kubectl
+
+如果你已经在自己的macOS或Windows中安装了Docker Desktop，kubectl应该是默认已经安装好的。可以自己打开终端，使用下述命令验证一下：
+
+```bash
+kubectl version --client
+```
+
+如果没有安装，对于macOS，可以直接使用`brew install kubectl`安装；对于Windows，可以参考官方给的[文档](https://kubernetes.io/zh/docs/tasks/tools/install-kubectl-windows/)。
+
+### 配置kubectl
+
+显然，仅仅依靠一个独立于集群的kubectl可执行程序是无法与集群通信的，我们必须通过一个配置文件来告诉kubectl，Kubernetes集群的API Server在哪里，如何进行权限验证等等。这个配置文件可以通过`--kubeconfig`来指定。例如，`kubectl get pod --kubeconfig=my.kube.config.yml`就表示强制kubectl使用`my.kube.config.yml`这个文件来与Kubernetes集群通信。**对于正常安装的kubectl，当不手动指定配置文件位置时，默认使用`~/.kube/config`作为配置文件。**
+
+Kubernetes的配置文件的格式是YAML格式，下面是一个典型的例子：
+
+```yaml
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJkekNDQVIyZ0F3SUJBZ0lCQURBS0JnZ3Foa2pPUFFRREFqQWpNU0V3SHdZRFZRUUREQmhyTTNNdGMyVnkKZG1WeUxXTmhRREUyTWpBMk5EWTRPRFF3SGhjTk1qRXdOVEV3TVRFME1USTBXaGNOTXpFd05UQTRNVEUwTVRJMApXakFqTVNFd0h3WURWUVFEREJock0zTXRjMlZ5ZG1WeUxXTmhRREUyTWpBMk5EWTRPRFF3V1RBVEJnY3Foa2pPClBRSUJCZ2dxaGtqT1BRTUJCd05DQUFUWXNDTUNqQjI3eDBmZ29jYlluVHR6bmprYmpnTStvWFZnUXBwKzU0MkEKUjJDTVRxWkxVWjc4MFNPdVdrWVRtUEVqTGZ0S0RMRFZPeVlrSDhUOEhwNjJvMEl3UURBT0JnTlZIUThCQWY4RQpCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVWVOL25zdis4MFpvTG5Tdmo3cFdqCjRLZTVTRUl3Q2dZSUtvWkl6ajBFQXdJRFNBQXdSUUlnRHN5OHdqUkk5YnJIbnJvWkIvcHpSR0Q5OUI2WWNrRGkKK1VkZDJHOTVGUndDSVFDcWpCaE85UE16bFM1UEs1Z3Z6MFBLNjIrdFlYNDV1TldJZlFzK0NuRTlWQT09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+    server: https://127.0.0.1:6443
+  name: default
+contexts:
+- context:
+    cluster: default
+    user: default
+  name: default
+current-context: default
+kind: Config
+preferences: {}
+users:
+- name: default
+  user:
+    client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJrVENDQVRlZ0F3SUJBZ0lJVkhuOVkxSHZ3RTR3Q2dZSUtvWkl6ajBFQXdJd0l6RWhNQjhHQTFVRUF3d1kKYXpOekxXTnNhV1Z1ZEMxallVQXhOakl3TmpRMk9EZzBNQjRYRFRJeE1EVXhNREV4TkRFeU5Gb1hEVEl5TURVeApNREV4TkRFeU5Gb3dNREVYTUJVR0ExVUVDaE1PYzNsemRHVnRPbTFoYzNSbGNuTXhGVEFUQmdOVkJBTVRESE41CmMzUmxiVHBoWkcxcGJqQlpNQk1HQnlxR1NNNDlBZ0VHQ0NxR1NNNDlBd0VIQTBJQUJQM2lKc2xSSERDeWgyTWEKZzhENWtvdldYQnFGOTZpWkZWVzc0UzlmOHFDSGxiMHhMZVBRU1ZQSXY4aXJVL2ROOWsvNGJJdm5PYVpUeGd0YwpCZzY3L21XalNEQkdNQTRHQTFVZER3RUIvd1FFQXdJRm9EQVRCZ05WSFNVRUREQUtCZ2dyQmdFRkJRY0RBakFmCkJnTlZIU01FR0RBV2dCU1M0bmxrc2QwbGlucGF3cWVOM1p3aDZPb1VlVEFLQmdncWhrak9QUVFEQWdOSUFEQkYKQWlCN01MU01saVM2ajZxaVFKeWFjRHhOT01odUwyR2duNHNuclN6SWNKMmluUUloQU9ibFNpekNaM21uNmhOeQpvUWZLSHRpVFVrUVFEYytsK2lETFQ2R2Z4eWxzCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KLS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJkakNDQVIyZ0F3SUJBZ0lCQURBS0JnZ3Foa2pPUFFRREFqQWpNU0V3SHdZRFZRUUREQmhyTTNNdFkyeHAKWlc1MExXTmhRREUyTWpBMk5EWTRPRFF3SGhjTk1qRXdOVEV3TVRFME1USTBXaGNOTXpFd05UQTRNVEUwTVRJMApXakFqTVNFd0h3WURWUVFEREJock0zTXRZMnhwWlc1MExXTmhRREUyTWpBMk5EWTRPRFF3V1RBVEJnY3Foa2pPClBRSUJCZ2dxaGtqT1BRTUJCd05DQUFReTdTOEdweW1xdytuUVVIc0VRVmhwZXNQUkFIcWI0VUFNUVVLdUNLankKWmVGVVVneVhYNDFDc3R0eUQwRkpmM1V6eUFrOFNoWkFRWUViVHI2Qm1OZXVvMEl3UURBT0JnTlZIUThCQWY4RQpCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBZEJnTlZIUTRFRmdRVWt1SjVaTEhkSllwNldzS25qZDJjCkllanFGSGt3Q2dZSUtvWkl6ajBFQXdJRFJ3QXdSQUlnQlJ0QW5VZ3k0SE1vVkp4NG1jTGVkNWVMMWZ3VDVUMFoKL0dWNE9aNzNUNllDSUN6bDdmMW5oanhIN0hWRkk1QXJlSldxZGNHMlhzM2RtZEZHOWVCQlMwTzgKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+    client-key-data: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUdPWUV6RjR1UmhUWFFNZnh4c3d5aGNnWTFZdFdZN1pHUzdROUVYNmpGMmxvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFL2VJbXlWRWNNTEtIWXhxRHdQbVNpOVpjR29YM3FKa1ZWYnZoTDEveW9JZVZ2VEV0NDlCSgpVOGkveUt0VDkwMzJUL2hzaStjNXBsUEdDMXdHRHJ2K1pRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
+```
+
+实际上，在我们部署集群的过程中，kubectl就是读取了k3s的配置文件，才能正常和Kubernetes集群通信的，而k3s的配置文件在master节点的`/etc/rancher/k3s/k3s.yaml`（k3s提供的kubectl是k3s自己编译的，和上游的kubectl不完全相同）。
+
+在部署过程中，我们之所以使用kubectl的时候必须加`sudo`，就是因为`buaa`这个用户没有对`/etc/rancher/k3s/k3s.yaml`读的权限。因此，我们可以更改该文件的权限配置`sudo chmod +r /etc/rancher/k3s/k3s.yaml`，就可以实现免sudo运行。
+
+为了能在本地电脑上直接通过kubectl访问到Kubernetes集群，可以在将master机器上的`/etc/rancher/k3s/k3s.yaml`拷贝到本地，并重命名`~/.kube/config`。另外，由于配置文件中的`server`指定的是服务器的本地ip：`server: https://127.0.0.1:6443`，所以，在本地电脑上，需要将这个ip改为master节点的ip。并且，访问时要保证自己的电脑在校园网环境下。
+
+## 允许pod被调度到master节点上
 
 仅仅有一个节点来运行Pod是不够的，无法体现出集群的各种特性。但是出于安全考虑，使用kubeadm初始化的Kubernetes集群默认不会将Pod调度到master节点上。因此，需要更改一些配置来使得master节点来运行Pod。执行命令：
-`$ sudo kubectl taint nodes MASTER_NAME node-role.kubernetes.io/master-`
+
+```bash
+kubectl taint nodes MASTER_NAME node-role.kubernetes.io/master-
+```
+
 其中的`MASTER_NAME`可以通过`sudo kubectl get nodes`获取并替换。
 
 >**污点与容忍**
@@ -240,54 +315,6 @@ daemonset.extensions/kube-flannel-ds-s390x created
 >**亲和与互斥**
 >
 >和污点与容忍的效果类似，Pod之间也有类似的属性，称为亲和与互斥。比如，某个Pod不希望与目标Pod运行在同一个节点上；或者某个Pod希望与目标Pod运行在同一节点上。
-
-- 切换到node节点上，执行初始化master节点成功后的提示的命令：
-  `$ sudo kubeadm join MASTER_IP_ADDRESS:6443 --token qpve0s.mea7by3vzoffier2 --discovery-token-ca-cert-hash sha256:368a6bdf9120d72cf1baf8872010a6b188ad56e7d21f6702e03b5180cdc86165`
-
->提示：由于在配置flannel网络时需要下载镜像，因此node节点在加入集群前也需要连网。
-
-  ```command
-  This node has joined the cluster:
-  * Certificate signing request was sent to apiserver and a response was received.
-  * The Kubelet was informed of the new secure connection details.
-
-  Run 'kubectl get nodes' on the master to see this node join the cluster.
-  ```
-
-- 切换到master节点，查看节点
-  
-  ```command
-  buaa@k8s-master:~$ sudo kubectl get nodes
-  NAME       STATUS     ROLES    AGE   VERSION
-  buaasoft   Ready      master   85m   v1.13.2
-  k8s-node   Ready   <none>   71s   v1.13.2
-  ```
-
-至此，Kubernetes集群基本构建完成
-
->如果显示node节点状态为NotReady:
->查看pod列表：
->`$ sudo kubectl get pod --all-namespaces`
->
->```command
->NAMESPACE     NAME                               READY   STATUS                  RESTARTS   AGE
->kube-system   coredns-86c58d9df4-2cmp7           1/1     Running                 0          85m
->kube-system   coredns-86c58d9df4-nld9j           1/1     Running                 0          85m
->kube-system   etcd-buaasoft                      1/1     Running                 0          84m
->kube-system   kube-apiserver-buaasoft            1/1     Running                 0          84m
->kube-system   kube-controller-manager-buaasoft   1/1     Running                 1          84m
->kube-system   kube-flannel-ds-amd64-k5swh        0/1     Init:ImagePullBackOff   0          98s
->kube-system   kube-flannel-ds-amd64-rz2s4        1/1     Running                 0          24m
->kube-system   kube-proxy-98lzx                   1/1     Running                 0          98s
->kube-system   kube-proxy-zs7cc                   1/1     Running                 0          85m
->kube-system   kube-scheduler-buaasoft            1/1     Running  
->```
->
->可以看到有一个Pod并没有就绪。可以通过`describe`指令来查看pod的具体情况：
->`$ sudo kubectl describe pod POD_NAME --namespace=NAME_SPACE`
->然后根据Pod的具体情况进行排查。
->
->经常出现的情况：另一个节点没有联网
 
 ## 运行一个镜像
 
@@ -368,10 +395,10 @@ daemonset.extensions/kube-flannel-ds-s390x created
   `$ sudo kubectl apply -f http://dockerlab.roycent.cn/scope.yml`
 
 安装成功后，Weave Scope会被部署到31721端口。访问该端口即可。
-![scope_containers](/img/scope_containers.png)
+![scope_containers](./img/scope_containers.png)
 
 在Weave Scope中，可以清楚地看到各个节点、控制器、容器之间的关系及他们的状态，也可以直接在节点上执行命令。Scope也支持对容器、部署、集群等的基本操作。
-![scope_console](/img/scope_console.png)
+![scope_console](./img/scope_console.png)
 
 ## 动手做
 
