@@ -82,17 +82,15 @@ Label是Kubernetes中另一个核心概念。一个标签是一个`key=value`的
 
 以下提供了几种部署Kubernetes集群的方式供大家根据自己的实际情况参考。
 
-### 学习环境
+### 学习环境（个人设备中搭建集群）
 
 在学习环境中，使用minikube或者Docker Desktop都是不错的选择，两者任选其一就好。
 
 #### minikube
 
-因为Kubernetes首先是一个集群，个人设备一般难以模拟真实的生产环境中的Kubernetes环境。在个人设备中，推荐使用[minikube](https://minikube.sigs.k8s.io/docs/start/)来体验、学习和使用Kubernetes集群。
-
 ![](img/2021-05-10-14-40-09.png)
 
-minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以该虚拟机为唯一节点的单节点Kubernetes集群。
+[minikube](https://minikube.sigs.k8s.io/docs/start/)会在你的个人电脑上，启动一台虚拟机，并部署一个以该虚拟机为唯一节点的单节点Kubernetes集群。
 
 ![](img/2021-05-10-14-55-22.png)
 
@@ -100,7 +98,7 @@ minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以
 
 一般来讲，minikube的安装和启动非常简单。只需要你安装好Docker之后（比如在macOS或Windows中，可以选择安装Docker Desktop），下载一个minikube的可执行文件，直接`minikube start`就好了。
 
-但是，minikube在初始化时，需要拉取一些容器镜像，而这些镜像的地址因为某些原因无妨被正常访问。所以，可以曲线救国，使用阿里云的镜像，具体可以参考[这篇文章](https://developer.aliyun.com/article/221687)。
+但是，minikube在初始化时，需要拉取一些容器镜像，而这些镜像的地址在国内无妨被正常访问。所以，可以曲线救国，使用阿里云的镜像，具体可以参考[这篇文章](https://developer.aliyun.com/article/221687)。
 
 更多内容和使用方法请参考minikube官方给出的[教程和使用手册](https://minikube.sigs.k8s.io/docs/start/)。
 
@@ -112,9 +110,9 @@ minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以
 
 如上图所示，打开Docker Desktop的控制面板，按照操作提示来就好。也可以参考[这篇文章](https://birthday.play-with-docker.com/kubernetes-docker-desktop/)。
 
-### 生产环境
+### 生产环境（使用多台服务器搭建集群）
 
-Kubernetes本身包含各个组件，纯靠人力完成部署是一件非常艰苦的工作。索性Kubernetes官方提供了很多安装引导工具来帮助我们搭建集群。**下面的部署方式，大家任选其一就好。**
+Kubernetes本身包含各个组件，纯靠人力完成部署是一件非常艰苦的工作。幸好Kubernetes官方提供了很多安装引导工具来帮助我们搭建集群。**下面的部署方式，大家任选其一就好。**
 
 #### Kubeadm
 
@@ -162,7 +160,7 @@ sudo hostnamectl set-hostname ${new_name}
 
 ## 初始化master节点
 
-云平台上的机器已经提前下载好了K3s所需的各种组件，直接使用k3s的安装脚本安装即可，并且，要选择**离线安装**的方式：
+云平台上的机器已经提前下载好了K3s所需的各种组件，直接使用k3s的安装脚本（在服务器的root用户的家目录下`/root/`）安装即可，并且，要选择**离线安装**的方式：
 
 ```bash
 sudo INSTALL_K3S_SKIP_DOWNLOAD=true ./install.sh
@@ -197,7 +195,7 @@ k8s-master   Ready    control-plane,master   3m41s   v1.21.0+k3s1
 
 ## 将Node节点加入集群
 
-登录node节点，确认修改完hostname后，在node节点执行以下命令。注意，请将命令中的`myserver`替换成自己master机器的ip，并将`mynodetoken`替换成自己集群的token（这个token值可以在master机器的`/var/lib/rancher/k3s/server/node-token`中找到。同样，请注意指定离线模式：
+登录node节点，确认修改完hostname后，在node节点执行以下命令。注意，请将命令中的`myserver`替换成自己master机器的ip，并将`mynodetoken`替换成自己集群的token（这个token值可以在master机器的`/var/lib/rancher/k3s/server/node-token`中找到）。同样，请注意指定离线模式：
 
 ```bash
 sudo INSTALL_K3S_SKIP_DOWNLOAD=true K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken ./install.sh
@@ -244,7 +242,9 @@ k8s-master   Ready    control-plane,master   34m     v1.21.0+k3s1
 
 - client-go等一系列SDK，通过这些官方或者第三方提供的各种编程语言的SDK，可以很轻松的通过代码控制Kubernetes集群，并在其上搭建各种有用有趣的程序
 
-在实验三和实验四中，我们主要使用kubectl来操控Kubernetes集群。实际上，在上一节集群的部署过程中，我们已经使用到了kubectl：`kubectl get node`。这个命令是在我们初始化master节点时自动附带安装的。
+在实验三和实验四中，我们主要利用kubectl，以命令行的方式来操控Kubernetes集群。
+
+> 实际上，在上一节集群的部署过程中，我们已经使用到了kubectl：`kubectl get node`。这里的`kubectl`是在我们初始化master节点时自动附带安装的。
 
 kubectl的工作方式大致如下图所示：
 
@@ -252,21 +252,19 @@ kubectl的工作方式大致如下图所示：
 
 可以看到，kubectl根本就不是Kubernetes集群的一部分。我们在前几节中使用kubectl时都”正好“是在Kubernetes集群中的master机器上。实际上，完全可以在另外随便一台机器上安装kubectl，然后使用它与Kubernetes集群通信，这样，我们就不用每次使用Kubernetes时都登录虚拟机了。
 
-### 安装kubectl
-
-如果你已经在自己的macOS或Windows中安装了Docker Desktop，kubectl应该是默认已经安装好的。可以自己打开终端，使用下述命令验证一下：
-
-```bash
-kubectl version --client
-```
-
-如果没有安装，对于macOS，可以直接使用`brew install kubectl`安装；对于Windows，可以参考官方给的[文档](https://kubernetes.io/zh/docs/tasks/tools/install-kubectl-windows/)。
-
 ### 配置kubectl
 
-显然，仅仅依靠一个独立于集群的kubectl可执行程序是无法与集群通信的，我们必须通过一个配置文件来告诉kubectl，Kubernetes集群的API Server在哪里，如何进行权限验证等等。这个配置文件可以通过`--kubeconfig`来指定。例如，`kubectl get pod --kubeconfig=my.kube.config.yml`就表示强制kubectl使用`my.kube.config.yml`这个文件来与Kubernetes集群通信。**对于正常安装的kubectl，当不手动指定配置文件位置时，默认使用`~/.kube/config`作为配置文件。**
+从kubectl的工作方式中我们可以看到，kubectl并不是Kubernetes集群的一个组成部分。在kubectl与API Server通信之前，kubectl将首先读取配置文件，得知API Server的位置。
 
-Kubernetes的配置文件的格式是YAML格式，下面是一个典型的例子：
+对于通过一般方式安装的kubectl（从上游直接获取的），其默认的配置文件位置为`~/.kube/config`。当然，我们也可以在使用kubectl时手动指定配置文件的位置，例如：`kubectl get pod --kubeconfig=my.kube.config.yml`。
+
+大家可以发现，我们前面使用kubectl的时候都使用了sudo提权，因为，每次执行命令的时候，kubectl都要读取一遍配置文件，而配置文件对buaa这个用户来说是没有读取权限的。因此，为了免去每次sudo输入密码的麻烦，可以更改一下k3s中kubectl的配置文件`/etc/rancher/k3s/k3s.yaml`的权限：
+
+```bash
+sudo chmod +r /etc/rancher/k3s/k3s.yaml
+```
+
+这里kubectl使用的配置文件的格式是一个YAML文件，下面是一个典型的例子：
 
 ```yaml
 apiVersion: v1
@@ -290,11 +288,19 @@ users:
     client-key-data: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUdPWUV6RjR1UmhUWFFNZnh4c3d5aGNnWTFZdFdZN1pHUzdROUVYNmpGMmxvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFL2VJbXlWRWNNTEtIWXhxRHdQbVNpOVpjR29YM3FKa1ZWYnZoTDEveW9JZVZ2VEV0NDlCSgpVOGkveUt0VDkwMzJUL2hzaStjNXBsUEdDMXdHRHJ2K1pRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
 ```
 
-实际上，在我们部署集群的过程中，kubectl就是读取了k3s的配置文件，才能正常和Kubernetes集群通信的，而k3s的配置文件在master节点的`/etc/rancher/k3s/k3s.yaml`（k3s提供的kubectl是k3s自己编译的，和上游的kubectl不完全相同）。
+### （可选）在个人电脑中使用kubectl
 
-在部署过程中，我们之所以使用kubectl的时候必须加`sudo`，就是因为`buaa`这个用户没有对`/etc/rancher/k3s/k3s.yaml`读的权限。因此，我们可以更改该文件的权限配置`sudo chmod +r /etc/rancher/k3s/k3s.yaml`，就可以实现免sudo运行。
+以为kubectl并不是Kubernetes的一部分，所以，我们完全可以在本地安装kubectl，然后利用它，从本地与虚拟机中的Kubernetes集群通信。这样，就不用每次做实验的时候都使用ssh登录到虚拟机上了（但请保证你本地的设备在校园网中）。
 
-为了能在本地电脑上直接通过kubectl访问到Kubernetes集群，可以在将master机器上的`/etc/rancher/k3s/k3s.yaml`拷贝到本地，并重命名`~/.kube/config`。另外，由于配置文件中的`server`指定的是服务器的本地ip：`server: https://127.0.0.1:6443`，所以，在本地电脑上，需要将这个ip改为master节点的ip。并且，访问时要保证自己的电脑在校园网环境下。
+首先，我们需要在本地安装kubectl。如果你已经在自己的macOS或Windows中安装了Docker Desktop，kubectl应该是默认已经安装好的。可以自己打开终端，使用下述命令验证一下：
+
+```bash
+kubectl version --client
+```
+
+如果没有安装，对于macOS，可以直接使用`brew install kubectl`安装；对于Windows，可以参考官方给的[文档](https://kubernetes.io/zh/docs/tasks/tools/install-kubectl-windows/)。
+
+其次，我们需要为安装好的kubectl提供一个配置文件。可以在将master机器上的`/etc/rancher/k3s/k3s.yaml`拷贝到本地，并重命名`~/.kube/config`。另外，由于配置文件中的`server`指定的是服务器的本地ip：`server: https://127.0.0.1:6443`，所以，在本地电脑上，需要将这个ip改为master节点的ip。
 
 ## 允许pod被调度到master节点上
 
