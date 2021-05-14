@@ -438,6 +438,8 @@ kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'
 
 进入到首页后，可以清楚地看到各个节点、控制器、容器之间的关系及他们的状态，也可以直接在节点上执行命令。
 
+关于Kubernetes Dashboard更详细的使用介绍，请参阅[官方指导](https://kubernetes.io/zh/docs/tasks/access-application-cluster/web-ui-dashboard/)。
+
 ![](img/2021-05-14-21-24-57.png)
 
 ![](img/2021-05-14-21-25-16.png)
