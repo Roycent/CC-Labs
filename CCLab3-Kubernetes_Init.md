@@ -482,4 +482,4 @@ kubectl port-forward -n weave "$(kubectl get -n weave pod --selector=weave-scope
 
   - 在master节点和node节点上均有Pod运行
 
-- 安装Weave Scope或Prometheus Operator并体验其提供的部分功能。
+- 安装Weave Scope或Kubernetes Dashboard并体验其提供的部分功能。
