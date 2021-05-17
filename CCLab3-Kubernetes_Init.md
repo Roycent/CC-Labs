@@ -82,17 +82,15 @@ Label是Kubernetes中另一个核心概念。一个标签是一个`key=value`的
 
 以下提供了几种部署Kubernetes集群的方式供大家根据自己的实际情况参考。
 
-### 学习环境
+### 学习环境（个人设备中搭建集群）
 
 在学习环境中，使用minikube或者Docker Desktop都是不错的选择，两者任选其一就好。
 
 #### minikube
 
-因为Kubernetes首先是一个集群，个人设备一般难以模拟真实的生产环境中的Kubernetes环境。在个人设备中，推荐使用[minikube](https://minikube.sigs.k8s.io/docs/start/)来体验、学习和使用Kubernetes集群。
-
 ![](img/2021-05-10-14-40-09.png)
 
-minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以该虚拟机为唯一节点的单节点Kubernetes集群。
+[minikube](https://minikube.sigs.k8s.io/docs/start/)会在你的个人电脑上，启动一台虚拟机，并部署一个以该虚拟机为唯一节点的单节点Kubernetes集群。
 
 ![](img/2021-05-10-14-55-22.png)
 
@@ -100,7 +98,7 @@ minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以
 
 一般来讲，minikube的安装和启动非常简单。只需要你安装好Docker之后（比如在macOS或Windows中，可以选择安装Docker Desktop），下载一个minikube的可执行文件，直接`minikube start`就好了。
 
-但是，minikube在初始化时，需要拉取一些容器镜像，而这些镜像的地址因为某些原因无妨被正常访问。所以，可以曲线救国，使用阿里云的镜像，具体可以参考[这篇文章](https://developer.aliyun.com/article/221687)。
+但是，minikube在初始化时，需要拉取一些容器镜像，而这些镜像的地址在国内无妨被正常访问。所以，可以曲线救国，使用阿里云的镜像，具体可以参考[这篇文章](https://developer.aliyun.com/article/221687)。
 
 更多内容和使用方法请参考minikube官方给出的[教程和使用手册](https://minikube.sigs.k8s.io/docs/start/)。
 
@@ -112,9 +110,9 @@ minikube会在你的个人电脑上，启动一台虚拟机，并部署一个以
 
 如上图所示，打开Docker Desktop的控制面板，按照操作提示来就好。也可以参考[这篇文章](https://birthday.play-with-docker.com/kubernetes-docker-desktop/)。
 
-### 生产环境
+### 生产环境（使用多台服务器搭建集群）
 
-Kubernetes本身包含各个组件，纯靠人力完成部署是一件非常艰苦的工作。索性Kubernetes官方提供了很多安装引导工具来帮助我们搭建集群。**下面的部署方式，大家任选其一就好。**
+Kubernetes本身包含各个组件，纯靠人力完成部署是一件非常艰苦的工作。幸好Kubernetes官方提供了很多安装引导工具来帮助我们搭建集群。**下面的部署方式，大家任选其一就好。**
 
 #### Kubeadm
 
@@ -162,7 +160,7 @@ sudo hostnamectl set-hostname ${new_name}
 
 ## 初始化master节点
 
-云平台上的机器已经提前下载好了K3s所需的各种组件，直接使用k3s的安装脚本安装即可，并且，要选择**离线安装**的方式：
+云平台上的机器已经提前下载好了K3s所需的各种组件，直接使用k3s的安装脚本（在服务器的root用户的家目录下`/root/`）安装即可，并且，要选择**离线安装**的方式：
 
 ```bash
 sudo INSTALL_K3S_SKIP_DOWNLOAD=true ./install.sh
@@ -197,7 +195,7 @@ k8s-master   Ready    control-plane,master   3m41s   v1.21.0+k3s1
 
 ## 将Node节点加入集群
 
-登录node节点，确认修改完hostname后，在node节点执行以下命令。注意，请将命令中的`myserver`替换成自己master机器的ip，并将`mynodetoken`替换成自己集群的token（这个token值可以在master机器的`/var/lib/rancher/k3s/server/node-token`中找到。同样，请注意指定离线模式：
+登录node节点，确认修改完hostname后，在node节点执行以下命令。注意，请将命令中的`myserver`替换成自己master机器的ip，并将`mynodetoken`替换成自己集群的token（这个token值可以在master机器的`/var/lib/rancher/k3s/server/node-token`中找到）。同样，请注意指定离线模式：
 
 ```bash
 sudo INSTALL_K3S_SKIP_DOWNLOAD=true K3S_URL=https://myserver:6443 K3S_TOKEN=mynodetoken ./install.sh
@@ -244,7 +242,9 @@ k8s-master   Ready    control-plane,master   34m     v1.21.0+k3s1
 
 - client-go等一系列SDK，通过这些官方或者第三方提供的各种编程语言的SDK，可以很轻松的通过代码控制Kubernetes集群，并在其上搭建各种有用有趣的程序
 
-在实验三和实验四中，我们主要使用kubectl来操控Kubernetes集群。实际上，在上一节集群的部署过程中，我们已经使用到了kubectl：`kubectl get node`。这个命令是在我们初始化master节点时自动附带安装的。
+在实验三和实验四中，我们主要利用kubectl，以命令行的方式来操控Kubernetes集群。
+
+> 实际上，在上一节集群的部署过程中，我们已经使用到了kubectl：`kubectl get node`。这里的`kubectl`是在我们初始化master节点时自动附带安装的。
 
 kubectl的工作方式大致如下图所示：
 
@@ -252,21 +252,19 @@ kubectl的工作方式大致如下图所示：
 
 可以看到，kubectl根本就不是Kubernetes集群的一部分。我们在前几节中使用kubectl时都”正好“是在Kubernetes集群中的master机器上。实际上，完全可以在另外随便一台机器上安装kubectl，然后使用它与Kubernetes集群通信，这样，我们就不用每次使用Kubernetes时都登录虚拟机了。
 
-### 安装kubectl
-
-如果你已经在自己的macOS或Windows中安装了Docker Desktop，kubectl应该是默认已经安装好的。可以自己打开终端，使用下述命令验证一下：
-
-```bash
-kubectl version --client
-```
-
-如果没有安装，对于macOS，可以直接使用`brew install kubectl`安装；对于Windows，可以参考官方给的[文档](https://kubernetes.io/zh/docs/tasks/tools/install-kubectl-windows/)。
-
 ### 配置kubectl
 
-显然，仅仅依靠一个独立于集群的kubectl可执行程序是无法与集群通信的，我们必须通过一个配置文件来告诉kubectl，Kubernetes集群的API Server在哪里，如何进行权限验证等等。这个配置文件可以通过`--kubeconfig`来指定。例如，`kubectl get pod --kubeconfig=my.kube.config.yml`就表示强制kubectl使用`my.kube.config.yml`这个文件来与Kubernetes集群通信。**对于正常安装的kubectl，当不手动指定配置文件位置时，默认使用`~/.kube/config`作为配置文件。**
+从kubectl的工作方式中我们可以看到，kubectl并不是Kubernetes集群的一个组成部分。在kubectl与API Server通信之前，kubectl将首先读取配置文件，得知API Server的位置。
 
-Kubernetes的配置文件的格式是YAML格式，下面是一个典型的例子：
+对于通过一般方式安装的kubectl（从上游直接获取的），其默认的配置文件位置为`~/.kube/config`。当然，我们也可以在使用kubectl时手动指定配置文件的位置，例如：`kubectl get pod --kubeconfig=my.kube.config.yml`。
+
+大家可以发现，我们前面使用kubectl的时候都使用了sudo提权，因为，每次执行命令的时候，kubectl都要读取一遍配置文件，而配置文件对buaa这个用户来说是没有读取权限的。因此，为了免去每次sudo输入密码的麻烦，可以更改一下k3s中kubectl的配置文件`/etc/rancher/k3s/k3s.yaml`的权限：
+
+```bash
+sudo chmod +r /etc/rancher/k3s/k3s.yaml
+```
+
+这里kubectl使用的配置文件的格式是一个YAML文件，下面是一个典型的例子：
 
 ```yaml
 apiVersion: v1
@@ -290,11 +288,19 @@ users:
     client-key-data: LS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1IY0NBUUVFSUdPWUV6RjR1UmhUWFFNZnh4c3d5aGNnWTFZdFdZN1pHUzdROUVYNmpGMmxvQW9HQ0NxR1NNNDkKQXdFSG9VUURRZ0FFL2VJbXlWRWNNTEtIWXhxRHdQbVNpOVpjR29YM3FKa1ZWYnZoTDEveW9JZVZ2VEV0NDlCSgpVOGkveUt0VDkwMzJUL2hzaStjNXBsUEdDMXdHRHJ2K1pRPT0KLS0tLS1FTkQgRUMgUFJJVkFURSBLRVktLS0tLQo=
 ```
 
-实际上，在我们部署集群的过程中，kubectl就是读取了k3s的配置文件，才能正常和Kubernetes集群通信的，而k3s的配置文件在master节点的`/etc/rancher/k3s/k3s.yaml`（k3s提供的kubectl是k3s自己编译的，和上游的kubectl不完全相同）。
+### 在个人电脑中使用kubectl
 
-在部署过程中，我们之所以使用kubectl的时候必须加`sudo`，就是因为`buaa`这个用户没有对`/etc/rancher/k3s/k3s.yaml`读的权限。因此，我们可以更改该文件的权限配置`sudo chmod +r /etc/rancher/k3s/k3s.yaml`，就可以实现免sudo运行。
+以为kubectl并不是Kubernetes的一部分，所以，我们完全可以在本地安装kubectl，然后利用它，从本地与虚拟机中的Kubernetes集群通信。这样，就不用每次做实验的时候都使用ssh登录到虚拟机上了（但请保证你本地的设备在校园网中）。
 
-为了能在本地电脑上直接通过kubectl访问到Kubernetes集群，可以在将master机器上的`/etc/rancher/k3s/k3s.yaml`拷贝到本地，并重命名`~/.kube/config`。另外，由于配置文件中的`server`指定的是服务器的本地ip：`server: https://127.0.0.1:6443`，所以，在本地电脑上，需要将这个ip改为master节点的ip。并且，访问时要保证自己的电脑在校园网环境下。
+首先，我们需要在本地安装kubectl。如果你已经在自己的macOS或Windows中安装了Docker Desktop，kubectl应该是默认已经安装好的。可以自己打开终端，使用下述命令验证一下：
+
+```bash
+kubectl version --client
+```
+
+如果没有安装，对于macOS，可以直接使用`brew install kubectl`安装；对于Windows，可以参考官方给的[文档](https://kubernetes.io/zh/docs/tasks/tools/install-kubectl-windows/)。
+
+其次，我们需要为安装好的kubectl提供一个配置文件。可以在将master机器上的`/etc/rancher/k3s/k3s.yaml`拷贝到本地，并重命名`~/.kube/config`。另外，由于配置文件中的`server`指定的是服务器的本地ip：`server: https://127.0.0.1:6443`，所以，在本地电脑上，需要将这个ip改为master节点的ip。
 
 ## 允许pod被调度到master节点上
 
@@ -318,86 +324,148 @@ kubectl taint nodes MASTER_NAME node-role.kubernetes.io/master-
 
 ## 运行一个镜像
 
-- 运行一个Nginx镜像
-  `$ sudo kubectl run nginx-test --image=nginx --replicas=2`
-- 查看创建结果
-  `$ sudo kubectl get deployment nginx-test`
+运行一个Nginx镜像
 
-  ```command
-  NAME         READY   UP-TO-DATE   AVAILABLE   AGE
-  nginx-test   2/2     2            2           114s
-  ```
-
-> 注意：这个创建过程可能会持续几十秒。如果持续的时间过长，参见前一节的方法来排查问题。
-
-- 查看Pod
-  `$ sudo kubectl get pod -o wide`
-  
-  ```command
-  NAME                          READY   STATUS    RESTARTS   AGE    IP            NODE       NOMINATED NODE   READINESS GATES
-  nginx-test-59df8dcb7f-4sw5g   1/1     Running   0          3m3s   10.244.1.36   k8s-node   <none>           <none>
-  nginx-test-59df8dcb7f-txlnq   1/1     Running   0          3m3s   10.244.0.15   buaasoft   <none>           <none>
-  ```
-
-在上面的信息中，我们获得了两个地址，通过这两个地址可以访问到Nginx容器。这个地址在Kubernetes集群之外是无法访问的，只能通过Kubernetes集群中的节点访问。当然，Kubernetes提供了向外提供服务的方法，之后我们会学习并使用。
-
-- 验证是否可以访问Nginx
-  `$ curl 10.244.1.36`
-
-  ```html
-  <!DOCTYPE html>
-  <html>
-  <head>
-  <title>Welcome to nginx!</title>
-  <style>
-      body {
-          width: 35em;
-          margin: 0 auto;
-          font-family: Tahoma, Verdana, Arial, sans-serif;
-      }
-  </style>
-  </head>
-  <body>
-  <h1>Welcome to nginx!</h1>
-  <p>If you see this page, the nginx web server is successfully installed and
-  working. Further configuration is required.</p>
-
-  <p>For online documentation and support please refer to
-  <a href="http://nginx.org/">nginx.org</a>.<br/>
-  Commercial support is available at
-  <a href="http://nginx.com/">nginx.com</a>.</p>
-
-  <p><em>Thank you for using nginx.</em></p>
-  </body>
-  </html>
-  html
-  ```
+```bash
+kubectl create deployment nginx-test --image=docker.scs.buaa.edu.cn/nginx --replicas=2 --port=80
+```
 
 > `replicas`参数
 > `replicas`参数会指定Pod的副本数。也就是说，如果指定`replicas=2`，那么Kubernetes就会一直使创建的Pod数量保持为2，即便其中有一个Pod因为异常退出。
 
+查看创建结果
+
+```bash
+sudo kubectl get deployment nginx-test
+```
+
+会得到如下输出：
+
+```
+buaa@k8s-master:~$ kubectl get deployment nginx-test
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-test   2/2     2            2           20s
+```
+
+当所有的两个pod都“Ready”后，说明创建成功。这里的创建过程可能会比较长，大家可以耐心等待。
+
+查看Pod
+
+```bash
+kubectl get pod -o wide
+```
+  
+```
+buaa@k8s-master:~$ kubectl get pod -o wide
+NAME                          READY   STATUS    RESTARTS   AGE     IP           NODE         NOMINATED NODE   READINESS GATES
+nginx-test-6884fd56dd-8j7sg   1/1     Running   0          2m45s   10.42.0.17   k8s-master   <none>           <none>
+nginx-test-6884fd56dd-rqjxv   1/1     Running   0          2m45s   10.42.1.4    k8s-node     <none>           <none>
+```
+
 可以看到，pod分别在两个节点上运行。
 
->和上一节的情况相似，此处的pod的状态也可能不是`Running`。依旧可以通过`describe`指令来排查原因。
+> 和上一节的情况相似，此处的pod的状态也可能不是`Running`。依旧可以通过`describe`指令来排查原因。
+
+在上面的信息中，我们获得了两个地址，通过这两个地址可以访问到Nginx容器。这个地址的类型是“集群内IP（Cluster IP）”，在Kubernetes集群之外是无法访问的，只能在Kubernetes集群中的节点中访问。当然，Kubernetes提供了向外提供服务的方法，之后我们会学习并使用。
+
+验证是否可以访问Nginx：
+
+```bash
+curl 10.42.0.17
+```
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+```
 
 ## 安装图形化界面管理工具
 
-常用的Kubernetes集群监控/管理工具有以下几种
+提供图形化界面的，常用的Kubernetes集群监控/管理工具有很多很多，下面是常见的几种：
 
 - Kubernetes Dashboard
-- Heapster
-- Prometheus Operator
 - Weave Scope
+- Prometheus Operator
 
-其中，Kubernetes Dashboard通过`d.buaa.edu.cn`访问会有错误、Heapster项目已终止、Prometheus Operator安装配置较为复杂，因此我们选择Weave Scope。感兴趣的同学可以尝试安装Promethus Operator。
+其中,Kubernetes Dashboard是Kubernetes官方支持的图形化界面，也是使用最广泛的图形化界面。事实上，这些工具的安装方法都大同小异，下面分别介绍一下Kubernetes Dashboard和Weave Scope安装和使用。Promethus Operator的安装和配置比较复杂，有兴趣的同学可以自行尝试。
 
-- 安装Weave Scope
-  `$ sudo kubectl apply -f http://dockerlab.roycent.cn/scope.yml`
+### Kubernetes Dashboard
 
-安装成功后，Weave Scope会被部署到31721端口。访问该端口即可。
+首先，在集群中部署Dashboard：
+
+```bash
+kubectl apply -f https://git.scs.buaa.edu.cn/iobs/static_files/raw/main/kube/dashboard/dashboard.yml \
+              -f https://git.scs.buaa.edu.cn/iobs/static_files/raw/main/kube/dashboard/dashboard.admin-user.yml \
+              -f https://git.scs.buaa.edu.cn/iobs/static_files/raw/main/kube/dashboard/dashboard.admin-user-role.yml
+```
+
+到这里，Kubernetes Dashboard其实已经安装完成了。后续的工作是为了让我们能从浏览器中访问到Kubernetes Dashboard的UI。
+
+在**本地**机器中，使用`kubectl proxy`将端口转发到本地。紧接着，可以在执行这条命令的机器的浏览器中，访问到这个地址：[http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/](http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:/proxy/)。
+
+![](img/2021-05-14-21-21-52.png)
+
+在上图这个登录界面中，选择“Token”方式进行验证，然后在下方输入token值，点击“登录”即可。其中，token值可以通过以下命令获得：
+
+```bash
+kubectl -n kubernetes-dashboard describe secret admin-user-token | grep '^token'
+```
+
+![](img/2021-05-14-21-24-04.png)
+
+进入到首页后，可以清楚地看到各个节点、控制器、容器之间的关系及他们的状态，也可以直接在节点上执行命令。
+
+关于Kubernetes Dashboard更详细的使用介绍，请参阅[官方指导](https://kubernetes.io/zh/docs/tasks/access-application-cluster/web-ui-dashboard/)。
+
+![](img/2021-05-14-21-24-57.png)
+
+![](img/2021-05-14-21-25-16.png)
+
+![](img/2021-05-14-21-25-40.png)
+
+### Weave Scope
+
+首先，在集群中部署Weave Scope：
+
+```bash
+kubectl apply -f https://git.scs.buaa.edu.cn/iobs/static_files/raw/main/kube/weave_scope/scope.yml
+```
+
+安装成功后，需要将端口转发到本地。在**本地**机器上执行下面命令：
+
+```bash
+kubectl port-forward -n weave "$(kubectl get -n weave pod --selector=weave-scope-component=app -o jsonpath='{.items..metadata.name}')" 4040
+```
+
+上面的命令会把weave scope的端口转发到本地机器的4040端口。接着，在浏览器中访问[http://localhost:4040/](http://localhost:4040/)即可。
+
 ![scope_containers](./img/scope_containers.png)
 
 在Weave Scope中，可以清楚地看到各个节点、控制器、容器之间的关系及他们的状态，也可以直接在节点上执行命令。Scope也支持对容器、部署、集群等的基本操作。
+
 ![scope_console](./img/scope_console.png)
 
 ## 动手做
@@ -407,7 +475,11 @@ kubectl taint nodes MASTER_NAME node-role.kubernetes.io/master-
 ### 复现前文实验过程
 
 - 完成双节点Kubernetes集群的初始化工作
+
 - 运行一个Pod。要满足以下几点要求
+
   - 两台虚拟机的`hostname`带有自己的学号
+
   - 在master节点和node节点上均有Pod运行
-- 安装Weave Scope或Prometheus Operator并体验其提供的部分功能。
+
+- 安装Weave Scope或Kubernetes Dashboard并体验其提供的部分功能。
