@@ -394,8 +394,6 @@ Pod副本数变为了3个。
 
 将**node节点**关机，这一步可以在云平台上进行，也可以直接登录node节点，使用`sudo shutdown now`来直接关机。
 
-**进行危险操作前的再次提醒：要在node节点上先添加允许ssh连接通过防火墙的规则，再开启node节点的防火墙。**
-
 关机后，master节点会找不到node节点，因此node节点会变为`NotReady`状态。
 
 > 可能需要等待一段时间才能看到节点状态变为`NotReady`。不过如果用curl访问node节点上的Nginx服务器，可以马上看到Nginx已经无响应了。
