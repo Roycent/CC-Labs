@@ -1,35 +1,33 @@
-# 云计算实验指南
+# 实验四 Kubernetes的基本使用
 
-[toc]
-
----
-
-## 实验三 Kubernetes的基本使用
-
-### 实验目的
+## 实验目的
 
 - 了解Kubernetes的各种特性
 - 掌握Kubernetes的常用功能
 
-### 配置资源的两种方式
+## 配置资源的两种方式
 
-#### 使用命令
+### 使用命令
 
 回想之前我们刚刚初始化Kubernetes集群后，执行过的命令：
 
-- `$ sudo kubectl run nginx-test --image=nginx --replicas=2`
+```bash
+kubectl create deployment nginx-test --image=docker.scs.buaa.edu.cn/nginx --replicas=2 --port=80
+```
 
-使用kubectl命令创建资源时，会将Pod的配置都写入命令参数中。以我们执行过的`kubectl run`命令（在集群中使用指定镜像启动容器）为例，命令中包含了镜像名（`--image`）、伸缩情况（`--replicas`）。当然，`kubectl`命令还有许多其他的功能，详情可以在[Kubernetes文档-kubectl命令](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands)看到。
+使用kubectl命令创建资源时，会将Pod的配置都写入命令参数中。以我们执行过的`kubectl create`命令（在集群中使用指定镜像启动容器）为例，命令中包含了镜像名（`--image`）、伸缩情况（`--replicas`）。当然，`kubectl`命令还有许多其他的功能，详情可以在[Kubernetes文档-kubectl命令](https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands)看到。
 
 直接使用kubectl创建资源简单、直观、快捷，很适合临时测试或者试验。但实际上，创建资源时通常需要一系列的配置，如果单纯使用kubectl命令会比较麻烦，因此通常在配置资源会使用yaml配置文件。
 
-#### 使用配置文件
+### 使用配置文件
 
 在之前的实验中，我们使用了这个命令来安装Weave Scope
 
-`$ sudo kubectl apply -f http://dockerlab.roycent.cn/scope.yml`
+```bash
+kubectl apply -f https://git.scs.buaa.edu.cn/iobs/static_files/raw/main/kube/weave_scope/scope.yml
+```
 
-这个命令实际上从后面的地址读取了一个yaml配置文件，并根据这个文件来配置资源。如果你将这个文件打开，你会看到这样的内容（省略了部分内容）：
+这个命令实际上从后面的地址读取了一个yaml配置文件，并根据这个文件来配置资源。如果你将这个文件打开，你会看到这样的内容（省略了很多内容）：
 
 ```yaml
 apiVersion: v1
@@ -40,29 +38,19 @@ items:
     metadata:
       name: weave
       annotations:
-        cloud.weave.works/version: v1.0.0-266-gbda94bc
+        cloud.weave.works/version: v1.0.0-302-g76376bb
   - apiVersion: v1
-    kind: Service
+    kind: ServiceAccount
     metadata:
-      name: weave-scope-app
-      annotations:
-        cloud.weave.works/launcher-info: |-
-          {
-            "original-request": {
-              "url": "/k8s/scope.yaml?k8s-version=",
-              "date": "Tue Feb 25 2020 06:46:16 GMT+0000 (UTC)"
-            },
-            "email-address": "support@weave.works"
-          }
-  - apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: weave-scope-cluster-agent
+      name: weave-scope
+      labels:
+        name: weave-scope
+      namespace: weave
 ```
 
-#### YAML
+### YAML
 
->[YAML](https://yaml.org/)是一种可读性高、用来表达数据序列化的格式。YAML使用空白字符和分行来分隔数据，使用一些符号来标记清单、散列表、标量等资料形态。
+> [YAML](https://yaml.org/)是一种可读性高、用来表达数据序列化的格式。YAML使用空白字符和分行来分隔数据，使用一些符号来标记清单、散列表、标量等资料形态。
 
 常用的YAML语法：
 
@@ -83,25 +71,19 @@ items:
       "metadata": {
         "name": "weave",
         "annotations": {
-          "cloud.weave.works/version": "v1.0.0-266-gbda94bc"
+          "cloud.weave.works/version": "v1.0.0-302-g76376bb"
         }
       }
     },
     {
       "apiVersion": "v1",
-      "kind": "Service",
+      "kind": "ServiceAccount",
       "metadata": {
-        "name": "weave-scope-app",
-        "annotations": {
-          "cloud.weave.works/launcher-info": "{\n  \"original-request\": {\n    \"url\": \"/k8s/scope.yaml?k8s-version=\",\n    \"date\": \"Tue Feb 25 2020 06:46:16 GMT+0000 (UTC)\"\n  },\n  \"email-address\": \"support@weave.works\"\n}"
-        }
-      }
-    },
-    {
-      "apiVersion": "apps/v1",
-      "kind": "Deployment",
-      "metadata": {
-        "name": "weave-scope-cluster-agent"
+        "name": "weave-scope",
+        "labels": {
+          "name": "weave-scope"
+        },
+        "namespace": "weave"
       }
     }
   ]
@@ -110,57 +92,63 @@ items:
 
 这个例子应该可以帮助你理解YAML格式。节选的YAML配置文件会让Kubernetes进行如下工作：
 
-- 创建一个命名空间，名字为"weave"，并且将版本信息加到了注释上
-- 创建一个Service，名字为"weave-scope"，并且也注释了一些信息
-- 创建一个Deployment,名字为"weave-scope-cluster-agent"
+- 创建一个Namespace，名字为"weave"，并且将版本信息加到了注释上
+- 创建一个ServiceAccount，名字为"weave-scope"，并且也注释了一些信息
 
-### 调度Pod
+## 调度Pod
 
 前面我们已经稍微了解到，Kubernetes通过各种Controller来管理Pod的生命周期，Kubernetes也提供了数种不同功能的内置Controller。每个控制器管理集群状态的一个特定方面。最常见的情况是：一个特定的控制器使用一种类型的资源作为它的期望状态，控制器管理控制另外一种类型的资源向它的期望状态发展。
 
-#### Deployment
+### Deployment
 
 回忆我们运行的第一个Pod：
 
->- 运行一个Nginx镜像
->  `$ sudo kubectl run nginx-test --image=nginx --replicas=2`
->- 查看创建结果
->  `$ sudo kubectl get deployment nginx-test`
+    运行一个Nginx镜像
+
+    ```bash
+    kubectl create deployment nginx-test --image=docker.scs.buaa.edu.cn/nginx --replicas=2 --port=80
+    ```
+
+    查看创建结果
+
+    ```bash
+    sudo kubectl get deployment nginx-test
+    ```
 
 可以发现我们在查看它的时候使用的是`get deployment`命令。事实上我们已经部署了包含两个副本的Deployment，它的名字就是`nginx-test`。
 
->一个Deployment控制器为Pods和ReplicaSets提供描述性的更新方式：描述Deployment中的期望状态，并且Deployment控制器以受控速率更改实际状态，以达到期望状态。
+> 一个Deployment控制器为Pods和ReplicaSets提供描述性的更新方式：描述Deployment中的期望状态，并且Deployment控制器以受控速率更改实际状态，以达到期望状态。
 
 在这个例子中，我们的“期望状态”就是启动一个有两个副本的Nginx镜像。在这个过程中，我们创建了一个Deployment对象，通过Deployment生成了对应的ReplicaSet并完成了Pod副本的创建过程。除此之外，Deployment的主要功能还有以下几个：
 
 - 检查Deployment的状态来看部署动作是否完成（Pod副本的数量是否达到了预期的值）
-  - 例如，在本例中，如果你执行`kubectl run`命令后马上执行`kubectl get deployment`命令，你可能会看到`READY`一栏并不是`2/2`，`AVAILABLE`一栏也不是`2`，也就是说，部署动作尚未完成，Pod副本数量没有达到预期的值（2）。
+  - 例如，在本例中，如果你执行`kubectl create`命令后马上执行`kubectl get deployment`命令，你可能会看到`READY`一栏并不是`2/2`，`AVAILABLE`一栏也不是`2`，也就是说，部署动作尚未完成，Pod副本数量没有达到预期的值（2）。
 - 更新Deployment以创建新的Pod（比如镜像升级）
 - 回滚之前的Deployment版本
 - 暂停Deployment（修改Pod中的镜像信息，之后再恢复Deployment进行新的发布）
 - 扩展Deployment（以应对高负载情况）
 - 清理不再需要的旧版本ReplicaSet
 
-- 查看更详细的信息：`$ sudo kubectl describe deployment nginx-test`
+- 查看更详细的信息：`kubectl describe deployment nginx-test`
 
-  ```command
+  ```
   Name:                   nginx-test
   Namespace:              default
-  CreationTimestamp:      Fri, 06 Mar 2020 10:28:03 +0800
-  Labels:                 run=nginx-test
+  CreationTimestamp:      Fri, 14 May 2021 15:46:51 +0800
+  Labels:                 app=nginx-test
   Annotations:            deployment.kubernetes.io/revision: 1
-  Selector:               run=nginx-test
+  Selector:               app=nginx-test
   Replicas:               2 desired | 2 updated | 2 total | 2 available | 0 unavailable
   StrategyType:           RollingUpdate
   MinReadySeconds:        0
   RollingUpdateStrategy:  25% max unavailable, 25% max surge
   Pod Template:
-    Labels:  run=nginx-test
+    Labels:  app=nginx-test
     Containers:
-    nginx-test:
-      Image:        nginx
-      Port:         <none>
-      Host Port:    <none>
+    nginx:
+      Image:        docker.scs.buaa.edu.cn/nginx
+      Port:         80/TCP
+      Host Port:    0/TCP
       Environment:  <none>
       Mounts:       <none>
     Volumes:        <none>
@@ -170,16 +158,13 @@ items:
     Available      True    MinimumReplicasAvailable
     Progressing    True    NewReplicaSetAvailable
   OldReplicaSets:  <none>
-  NewReplicaSet:   nginx-test-59df8dcb7f (2/2 replicas created)
-  Events:
-    Type    Reason             Age    From                   Message
-    ----    ------             ----   ----                   -------
-    Normal  ScalingReplicaSet  3m51s  deployment-controller  Scaled up replica set nginx-test-59df8dcb7f to 2
+  NewReplicaSet:   nginx-test-6884fd56dd (2/2 replicas created)
+  Events:          <none>
   ```
 
-大多数内容都是自解释的，比如Deployment的名字、命名空间、创建时间等等。我们主要关注最后的一些信息：`NewReplicaSet`和`Events`。这些信息告诉我们Deployment创建了一个新的ReplicaSet，ReplicaSet又伸展成了2个副本。
+大多数内容都是自解释的，比如Deployment的名字、命名空间、创建时间等等。我们主要关注最后的一些信息：`NewReplicaSet`和`Events`。这些信息告诉我们Deployment创建了一个新的ReplicaSet，其中包含2个副本。
 
-##### Deployment配置文件
+#### Deployment配置文件
 
 以之前的`nginx-test`为例，它的配置文件可以写成
 
@@ -201,16 +186,23 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx
+        image: docker.scs.buaa.edu.cn/nginx
+        ports:
+        - containerPort: 80
+          protocol: TCP
 ```
 
-- 使用配置文件部署Deployment（将上面的内容写入了`nginx.yaml`）
-  `$ sudo kubectl apply -f nginx.yaml`
-  `deployment.apps/nginx-test created`
+将上述内容写入文件`nginx.yml`中，然后执行：
 
-在这个文件中：
+```bash
+kubectl apply -f nginx.yml
+```
 
-- `apiVersion` 当前配置所使用的API版本。其格式为`组/版本号`，例如刚刚使用的配置文件中，使用Deploymenet要表明API版本为`apps/v1`。
+其效果与我们在实验三中直接执行`kubectl create deployment nginx-test --image=docker.scs.buaa.edu.cn/nginx --replicas=2 --port=80`效果是完全一样的。
+
+在上述这个文件`nginx.yml`中：
+
+- `apiVersion` 当前配置所使用的API版本。其格式为`组/版本号`，例如刚刚使用的配置文件中，使用Deployment要表明API版本为`apps/v1`。
 - `kind` 当前配置资源的类型
 - `metadata` 当前配置资源的元数据。其中`name`是必填项。
 - `spec` 当前资源的规格，此处为Deployment的规格
@@ -221,154 +213,219 @@ spec:
     - `metadata` Pod的元数据，至少要定义一个label。每个label是一个键值对，key和value都可以自定义。为了和使用`kubectl run`创建的Deployment保持一致，这里用了`run: nginx-test`。
       - `labels`
     - `spec` Pod的规格。此部分定义Pod中每一个容器的属性，对于每一个容器，`name`和`image`是必须的。
+      - `ports`中详细指明了该容器需要向外暴露哪些端口。
 
-#### ReplicaSet
+### ReplicaSet
 
->ReplicaSet确保任何时间都有指定数量的Pod副本在运行。虽然ReplicaSet可以独立使用，但如今它主要被Deployment用作协调Pod创建、删除和更新的机制。Deployment是一个更高级的概念，它管理ReplicaSet，并向Pod提供声明式的更新以及许多其他有用的功能（比如版本记录、回滚、暂停升级等高级特性）。实际上，我们可能永远**不需要**操作ReplicaSet对象，而是使用Deployment。
+> ReplicaSet确保任何时间都有指定数量的Pod副本在运行。虽然ReplicaSet可以独立使用，但如今它主要被Deployment用作协调Pod创建、删除和更新的机制。Deployment是一个更高级的概念，它管理ReplicaSet，并向Pod提供声明式的更新以及许多其他有用的功能（比如版本记录、回滚、暂停升级等高级特性）。实际上，我们可能永远**不需要**操作ReplicaSet对象，而是使用Deployment。
 
-- 查看由Deployment创建的ReplicaSet
-  `$ sudo kubectl get replicaset`
+查看由Deployment创建的ReplicaSet
 
-  ```command
-  NAME                    DESIRED   CURRENT   READY   AGE
-  nginx-test-59df8dcb7f   2         2         2       4h38m
-  ```
+```bash
+kubectl get replicaset
+```
 
-- 查看ReplicaSet的详细信息
-  `$ sudo kubectl describe replicaset nginx-test-59df8dcb7f`
+```
+NAME                    DESIRED   CURRENT   READY   AGE
+nginx-test-6884fd56dd   2         2         2       6h7m
+```
 
-  ```command
-  Name:           nginx-test-59df8dcb7f
-  Namespace:      default
-  Selector:       pod-template-hash=59df8dcb7f,run=nginx-test
-  Labels:         pod-template-hash=59df8dcb7f
-                  run=nginx-test
-  Annotations:    deployment.kubernetes.io/desired-replicas: 2
-                  deployment.kubernetes.io/max-replicas: 3
-                  deployment.kubernetes.io/revision: 1
-  Controlled By:  Deployment/nginx-test
-  Replicas:       2 current / 2 desired
-  ```
+查看ReplicaSet的详细信息
+
+```bash
+kubectl describe replicaset nginx-test-6884fd56dd
+```
+
+```
+Name:           nginx-test-6884fd56dd
+Namespace:      default
+Selector:       app=nginx-test,pod-template-hash=6884fd56dd
+Labels:         app=nginx-test
+                pod-template-hash=6884fd56dd
+Annotations:    deployment.kubernetes.io/desired-replicas: 2
+                deployment.kubernetes.io/max-replicas: 3
+                deployment.kubernetes.io/revision: 1
+Controlled By:  Deployment/nginx-test
+Replicas:       2 current / 2 desired
+Pods Status:    2 Running / 0 Waiting / 0 Succeeded / 0 Failed
+Pod Template:
+  Labels:  app=nginx-test
+           pod-template-hash=6884fd56dd
+  Containers:
+   nginx:
+    Image:        docker.scs.buaa.edu.cn/nginx
+    Port:         80/TCP
+    Host Port:    0/TCP
+    Environment:  <none>
+    Mounts:       <none>
+  Volumes:        <none>
+Events:           <none>
+```
 
 `Controlled By`指明了此ReplicaSet是由我们之前创建的Deployment所创建的。那么Pod是由什么创建的呢？在之前我们查看Pod时已经知道了Pod的Name，直接查看Pod的详细信息：
 
-- 查看Pod详细信息
-  `$ sudo kubectl describe pod nginx-test-59df8dcb7f-4sw5g`
+查看Pod详细信息
 
-  ```command
-  Name:               nginx-test-59df8dcb7f-4sw5g
-  Namespace:          default
-  Priority:           0
-  PriorityClassName:  <none>
-  Node:               k8s-node/10.251.252.74
-  Start Time:         Fri, 06 Mar 2020 10:27:55 +0800
-  Labels:             pod-template-hash=59df8dcb7f
-                      run=nginx-test
-  Annotations:        <none>
-  Status:             Running
-  IP:                 10.244.1.36
-  Controlled By:      ReplicaSet/nginx-test-59df8dcb7f
-  ```
+```bash
+kubectl describe pod nginx-test-6884fd56dd-8j7sg
+```
+
+```
+Name:         nginx-test-6884fd56dd-8j7sg
+Namespace:    default
+Priority:     0
+Node:         k8s-master/10.251.254.114
+Start Time:   Fri, 14 May 2021 15:46:51 +0800
+Labels:       app=nginx-test
+              pod-template-hash=6884fd56dd
+Annotations:  <none>
+Status:       Running
+IP:           10.42.0.17
+IPs:
+  IP:           10.42.0.17
+Controlled By:  ReplicaSet/nginx-test-6884fd56dd
+Containers:
+  nginx:
+    Container ID:   containerd://135a7109de612ec0b0e35e9b9cf3599ffd66f8e383d3a0b02c86d514fd4288fd
+    Image:          docker.scs.buaa.edu.cn/nginx
+    Image ID:       docker.scs.buaa.edu.cn/nginx@sha256:42bba58a1c5a6e2039af02302ba06ee66c446e9547cbfb0da33f4267638cdb53
+    Port:           80/TCP
+    Host Port:      0/TCP
+    State:          Running
+      Started:      Fri, 14 May 2021 15:46:52 +0800
+    Ready:          True
+    Restart Count:  0
+    Environment:    <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-2fhnf (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  kube-api-access-2fhnf:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   BestEffort
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:                      <none>
+```
 
 同样地，从`Controlled By`中我们可以看到，这里的Pod是由ReplicaSet创建的。根据以上的创建结果，我们可以大概推断出Kubernetes在这个过程中都做了什么：
 
 - 用户通过kubectl创建了Deployment，名为`nginx-test`
-- 该Deployment创建了ReplicaSet，名为`nginx-test-59df8dcb7f`
-- 该ReplicaSet创建了**两个**Pod，名为`nginx-test-59df8dcb7f-4sw5g`和`nginx-test-59df8dcb7f-txlnq`
+- 该Deployment创建了ReplicaSet，名为`nginx-test-6884fd56dd`
+- 该ReplicaSet创建了**两个**Pod，名为`nginx-test-6884fd56dd-8j7sg`和`nginx-test-6884fd56dd-rqjxv`
 
 同时我们也可以发现，Kubernetes的对象命名方式：`对象名=父对象名+字符串`
 
-现在，使用`kubectl run`创建的Pod已经完成了它的使命，之后我们会用新的方式创建新的Pod。
+现在，使用`kubectl create`创建的Pod已经完成了它的使命，之后我们会用新的方式创建新的Pod。
 
-- 删除之前部署的Nginx
-  `$ sudo kubectl delete deployment nginx-test`
-  `deployment.extensions "nginx-deployment" deleted`
+删除之前部署的Nginx
 
-#### 伸缩
+```bash
+sudo kubectl delete deployment nginx-test
+```
+
+### 伸缩
 
 伸缩是指在线增加或减少Pod的副本数。
 
-我们之前创建的Deployment有两个副本，执行`$ sudo kubectl get pod -o wide`可以看到，两个副本分别运行在master节点和普通节点上：
+使用前面所说的yml文件的方式再次创建一个名为`nginx-test`的Deployment。
 
-```command
-NAME                          READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
-nginx-test-7d87dd66f6-9pgz7   1/1     Running   0          63m   10.244.0.26   buaasoft   <none>           <none>
-nginx-test-7d87dd66f6-hgp5q   1/1     Running   0          63m   10.244.1.47   k8s-node   <none>           <none>
+```bash
+kubectl apply -f nginx.yml
 ```
 
-- 修改yaml配置文件，将`replicas`改为5，并再次执行`$ sudo kubectl apply -f nginx.yml`
-  `deployment.apps/nginx-test configured`
-- 再次查看Pod `$ sudo kubectl get pod -o wide`
+我们创建的Deployment有两个副本，执行`kubectl get pod -o wide`可以看到，两个副本分别运行在master节点和普通节点上：
+
+```
+NAME                          READY   STATUS    RESTARTS   AGE   IP           NODE         NOMINATED NODE   READINESS GATES
+nginx-test-6478975c66-jtd2r   1/1     Running   0          17s   10.42.0.15   k8s-master   <none>           <none>
+nginx-test-6478975c66-vj48s   1/1     Running   0          17s   10.42.1.92   k8s-node     <none>           <none>
+```
+
+修改yaml配置文件，将`replicas`改为5，并再次执行
+
+```bash
+kubectl apply -f nginx.yml
+```
+
+再次查看Pod 
+
+```bash
+kubectl get pod -o wide
+```
   
-  ```command
-  NAME                          READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
-  nginx-test-7d87dd66f6-72tvp   1/1     Running   0          16s   10.244.1.48   k8s-node   <none>           <none>
-  nginx-test-7d87dd66f6-9pgz7   1/1     Running   0          67m   10.244.0.26   buaasoft   <none>           <none>
-  nginx-test-7d87dd66f6-c42m9   1/1     Running   0          16s   10.244.1.49   k8s-node   <none>           <none>
-  nginx-test-7d87dd66f6-gnhlc   1/1     Running   0          16s   10.244.0.27   buaasoft   <none>           <none>
-  nginx-test-7d87dd66f6-hgp5q   1/1     Running   0          67m   10.244.1.47   k8s-node   <none>           <none>
-  ```
+```
+NAME                          READY   STATUS    RESTARTS   AGE   IP           NODE         NOMINATED NODE   READINESS GATES
+nginx-test-6478975c66-jtd2r   1/1     Running   0          66s   10.42.0.15   k8s-master   <none>           <none>
+nginx-test-6478975c66-vj48s   1/1     Running   0          66s   10.42.1.92   k8s-node     <none>           <none>
+nginx-test-6478975c66-8fl7v   1/1     Running   0          5s    10.42.1.93   k8s-node     <none>           <none>
+nginx-test-6478975c66-dgqn5   1/1     Running   0          5s    10.42.1.95   k8s-node     <none>           <none>
+nginx-test-6478975c66-zfpj2   1/1     Running   0          5s    10.42.1.94   k8s-node     <none>           <none>
+```
   
-  Pod副本数已经变为了5个。增加的3个副本分散在两个节点上。
+Pod副本数已经变为了5个。
 
-- 再次修改yaml配置文件，将replicas修改为3，并应用更改，再次查看Pod
+再次修改yaml配置文件，将replicas修改为3，并应用更改，再次查看Pod
 
-  ```command
-  NAME                          READY   STATUS    RESTARTS   AGE     IP            NODE       NOMINATED NODE   READINESS GATES
-  nginx-test-7d87dd66f6-72tvp   1/1     Running   0          3m48s   10.244.1.48   k8s-node   <none>           <none>
-  nginx-test-7d87dd66f6-9pgz7   1/1     Running   0          70m     10.244.0.26   buaasoft   <none>           <none>
-  nginx-test-7d87dd66f6-hgp5q   1/1     Running   0          70m     10.244.1.47   k8s-node   <none>           <none>
-  ```
+```
+NAME                          READY   STATUS    RESTARTS   AGE    IP           NODE         NOMINATED NODE   READINESS GATES
+nginx-test-6478975c66-jtd2r   1/1     Running   0          106s   10.42.0.15   k8s-master   <none>           <none>
+nginx-test-6478975c66-vj48s   1/1     Running   0          106s   10.42.1.92   k8s-node     <none>           <none>
+nginx-test-6478975c66-dgqn5   1/1     Running   0          45s    10.42.1.95   k8s-node     <none>           <none>
+```
 
-  Pod副本数变为了3个，两个节点上各自删除了一个副本。
+Pod副本数变为了3个。
 
-> 我们之前提到过“污点”与“容忍”，并将master节点上的污点“删除”了，因此Pod才会运行在master节点上。
+### 故障转移
 
-#### 故障转移
+**由于服务器资源紧张的原因，本节涉及的开关机操作比较危险，很可能导致虚拟机长时间无响应，因此，本节内容只阅读理解相关内容即可，可以不实践操作。**
 
-我们通过开启防火墙，阻断节点与master节点的通讯来模拟节点产生故障的情况。由于ufw开启后默认规则是阻止所有入站链接、放通所有出站链接在开启防火墙前，先要将放通ssh的规则写入防火墙规则中，以免开启防火墙后无法连接服务器。请注意，添加防火墙规则和开启防火墙的操作是**在node节点上进行**的，我们模拟的也是普通节点故障的情况。
+这里，我们使用直接关机的方式来模拟Kubernetes集群中有一台机器故障的情况。
+
+将**node节点**关机，这一步可以在云平台上进行，也可以直接登录node节点，使用`sudo shutdown now`来直接关机。
 
 **进行危险操作前的再次提醒：要在node节点上先添加允许ssh连接通过防火墙的规则，再开启node节点的防火墙。**
 
-- 允许ssh连接通过防火墙`$ sudo ufw allow ssh`
-  `Rules updated`
-- 编辑ufw配置文件`$ sudo vim /etc/default/ufw` 并将`DEFAULT_OUTPUT_POLICY`改为`"DROP"`，即默认不放通出站请求。
-- 开启防火墙`$ sudo ufw enable`
-
-开启防火墙后，节点间的通讯会收到阻隔，因此会变为`NotReady`状态。
+关机后，master节点会找不到node节点，因此node节点会变为`NotReady`状态。
 
 > 可能需要等待一段时间才能看到节点状态变为`NotReady`。不过如果用curl访问node节点上的Nginx服务器，可以马上看到Nginx已经无响应了。
 
-- 查看节点状态`$ sudo kubectl get node -o wide`
+查看节点状态 `kubectl get node -o wide`
   
-  ```command
-  NAME       STATUS     ROLES    AGE   VERSION   INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION      CONTAINER-RUNTIME
-  buaasoft   Ready      master   13d   v1.13.2   10.251.252.51   <none>        Ubuntu 16.04.6 LTS   4.4.0-142-generic   docker://18.6.3
-  k8s-node   NotReady   <none>   13d   v1.13.2   10.251.252.74   <none>        Ubuntu 16.04.6 LTS   4.4.0-142-generic   docker://18.6.3
-  ```
+```
+NAME         STATUS     ROLES                  AGE   VERSION        INTERNAL-IP      EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-master   Ready      control-plane,master   14d   v1.21.0+k3s1   10.251.254.114   <none>        Ubuntu 20.04.2 LTS   5.4.0-73-generic   containerd://1.4.4-k3s1
+k8s-node     NotReady   <none>                 14d   v1.21.0+k3s1   10.251.254.110   <none>        Ubuntu 20.04.2 LTS   5.4.0-73-generic   containerd://1.4.4-k3s1
+```
   
 可以看到，node节点的状态已经更改为了`NotReady`
 
-（数分钟后）
+稍等几分钟后，查看Pod `kubectl get pod -o wide`
 
-- 查看Pod`$ sudo kubectl get pod -o wide`
+```
+NAME                          READY   STATUS        RESTARTS   AGE     IP           NODE         NOMINATED NODE   READINESS GATES
+nginx-test-6478975c66-jtd2r   1/1     Running       0          32m     10.42.0.15   k8s-master   <none>           <none>
+nginx-test-6478975c66-dgqn5   1/1     Terminating   0          31m     10.42.1.95   k8s-node     <none>           <none>
+nginx-test-6478975c66-vj48s   1/1     Terminating   0          32m     10.42.1.92   k8s-node     <none>           <none>
+nginx-test-6478975c66-n7mmj   1/1     Running       0          5m52s   10.42.0.16   k8s-master   <none>           <none>
+nginx-test-6478975c66-jndr8   1/1     Running       0          5m52s   10.42.0.17   k8s-master   <none>           <none>
+```
 
-  ```command
-  NAME                          READY   STATUS        RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
-  nginx-test-7d87dd66f6-5zqzt   1/1     Running       0          54s   10.244.0.30   buaasoft   <none>           <none>
-  nginx-test-7d87dd66f6-64m87   1/1     Running       0          54s   10.244.0.29   buaasoft   <none>           <none>
-  nginx-test-7d87dd66f6-72tvp   1/1     Terminating   0          19m   10.244.1.48   k8s-node   <none>           <none>
-  nginx-test-7d87dd66f6-9pgz7   1/1     Running       0          87m   10.244.0.26   buaasoft   <none>           <none>
-  nginx-test-7d87dd66f6-hgp5q   1/1     Terminating   0          87m   10.244.1.47   k8s-node   <none>           <none>
-  ```
+原来在node节点上的两个Pod副本，都处于`Terminating`状态。并且master节点上新增了两个Pod副本。处于正常运行状态的Pod副本的总数依然维持在三个。
 
-原来在node节点上的两个Pod副本，都处于`Terminating`状态。并且master节点上新增了两个Pod副本。Pod副本的总数依然维持在三个。
+进入云平台，打开刚才关掉的服务器，一段时间后再次查看node列表和Pod列表，可以看到节点已经恢复为了`Ready`状态，处于`Terminating`的Pod已经被删除。
 
-- 关闭node节点的防火墙`$ sudo ufw disable`
-
-一段时间后再次查看node列表和Pod列表，可以看到节点已经恢复为了`Ready`状态，处于`Terminating`的Pod已经被删除。需要注意的是，master节点上的三个Pod副本仍然为三个，新创建的副本并不会因为节点恢复而迁移回node节点上。
-
-#### Job
+### Job
 
 Job会创建一个或多个Pod，并确保指定数量的Pod成功终止。当Pod成功完成时，Job将追踪成功完成的情况。当达到指定的成功完成次数时，Job就完成了。删除一个Job将清除它所创建的Pod。Job一般用于定义并启动一个批处理任务。批处理任务通常并行（或串行）启动多个计算进程去处理一批工作项，处理完成后，整个批处理任务结束。
 
@@ -393,13 +450,13 @@ spec:
       name: pi
     spec:
       containers:
-      - name: pi
-        image: perl
-        command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+        - name: pi
+          image: docker.scs.buaa.edu.cn/perl
+          command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
       restartPolicy: Never
 ```
 
-##### Job yaml格式
+#### Job yaml格式
 
 >- RestartPolicy: Pod的重启策略，在这里仅支持`Never`或`OnFailure`
 >- completions: 标志Job结束需要成功运行的Pod个数，默认为`1`
@@ -407,37 +464,31 @@ spec:
 >- activeDeadlineSeconds: 标志失败Pod的重试最大时间，超过这个时间不会继续重试
 >- `container`中的`command`: 以**string数组**的格式输入待执行指令 (样例中为perl输出2000位数字的pi的语句)
 
-查看Pod的log:
+运行该job:
 
-```command
-$ kubectl create -f ./job.yaml
-job "pi" created
-$ kubectl get pod
-NAME          READY   STATUS              RESTARTS   AGE
-pi-kpd65      0/1     ContainerCreating   0          6s
+```bash
+kubectl create -f job.yaml
 ```
 
-此时还在拉取perl镜像，几分钟后...
+几分钟后，可以看到pod的创建情况 `kubectl get pod`：
 
-```command
-$ kubectl get pod
-NAME          READY   STATUS              RESTARTS   AGE
-pi-kpd65      0/1     Completed           0          2m9s
-$ kubectl logs pi-kpd65
-3.14159265358979323846264338327950288419716939937510...
-$ kubectl get job
-NAME   COMPLETIONS   DURATION   AGE
-pi     1/1           31s        3m41s
+```
+NAME              READY   STATUS           RESTARTS   AGE
+pi-5qng4          0/1     Completed        0          2m30s
 ```
 
-此时Job已经按照预设的任务完成了，使用`kubectl logs <podname>`查看Pod的日志也能看到按照预设的command输出的2000位数字的$\pi$
+此时Job已经按照预设的任务完成了，使用`kubectl logs <podname>`查看Pod的日志也能看到按照预设的command输出的2000位数字的$\pi$。
 
-##### Cron Job定时任务
+```
+3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173819326117931051185480744623799627495673518857527248912279381830119491298336733624406566430860213949463952247371907021798609437027705392171762931767523846748184676694051320005681271452635608277857713427577896091736371787214684409012249534301465495853710507922796892589235420199561121290219608640344181598136297747713099605187072113499999983729780499510597317328160963185950244594553469083026425223082533446850352619311881710100031378387528865875332083814206171776691473035982534904287554687311595628638823537875937519577818577805321712268066130019278766111959092164201989380952572010654858632788659361533818279682303019520353018529689957736225994138912497217752834791315155748572424541506959508295331168617278558890750983817546374649393192550604009277016711390098488240128583616035637076601047101819429555961989467678374494482553797747268471040475346462080466842590694912933136770289891521047521620569660240580381501935112533824300355876402474964732639141992726042699227967823547816360093417216412199245863150302861829745557067498385054945885869269956909272107975093029553211653449872027559602364806654991198818347977535663698074265425278625518184175746728909777727938000816470600161452491921732172147723501414419735685481613611573525521334757418494684385233239073941433345477624168625189835694855620992192221842725502542568876717904946016534668049886272327917860857843838279679766814541009538837863609506800642251252051173929848960841284886269456042419652850222106611863067442786220391949450471237137869609563643719172874677646575739624138908658326459958133904780275901
+```
+
+#### Cron Job定时任务
 
 Kubernetes还提供了定时计划任务：
 
 ```yaml
-apiVersion: batch/v1beta1
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: hello
@@ -448,55 +499,57 @@ spec:
       template:
         spec:
           containers:
-          - name: hello
-            image: busybox
-            args:
-            - /bin/sh
-            - -c
-            - date; echo Hello from the Kubernetes cluster
+            - name: hello
+              image: docker.scs.buaa.edu.cn/busybox
+              args:
+                - /bin/sh
+                - -c
+                - date; echo Hello from the Kubernetes cluster
           restartPolicy: OnFailure
 ```
 
-与一般的Job相比，除了`apiVersion`及`kind`不同外，CronJob的主要不同点在于额外有了`schedule`及`jobTemplate`两个字段。`schedule`是定时表达式，其格式与Linux Cron的格式基本相同，如示例的cron表达式为每分钟执行一次。`jobTemplate`一节与Job中的`template`格式相同。
+与一般的Job相比，CronJob的主要不同点在于额外有了`schedule`及`jobTemplate`两个字段。`schedule`是定时表达式，其格式与Linux Cron的格式基本相同，如示例的cron表达式为每分钟执行一次。`jobTemplate`一节与Job中的`template`格式相同。
 
-- 创建定时任务`$ kubectl create -f cron.yaml`
+创建定时任务 `kubectl create -f cron.yml`
 
-- 查看定时任务`~$ kubectl get cronjob`
+查看定时任务 `kubectl get cronjob`
 
-  ```command
-  NAME    SCHEDULE      SUSPEND   ACTIVE   LAST SCHEDULE   AGE
-  hello   */1 * * * *   False     0        53s             3m5s`
-  ```
+```command
+NAME    SCHEDULE      SUSPEND   ACTIVE   LAST SCHEDULE   AGE
+hello   */1 * * * *   False     0        2s              47s
+```
 
-- get命令只会输出上一次创建Job的时间，而不是所有。可以使用`watch`参数来更加直观地观察Job的创建过程`$ kubectl get jobs --watch`
+get命令只会输出上一次创建Job的时间，而不是所有。可以使用`watch`参数来更加直观地观察Job的创建过程 `kubectl get jobs --watch`
 
-  ```command
-  NAME               COMPLETIONS   DURATION   AGE
-  hello-1584515160   1/1           6s         2m42s
-  hello-1584515220   1/1           7s         101s
-  hello-1584515280   1/1           5s         41s
-  ```
+```command
+NAME             COMPLETIONS   DURATION   AGE
+hello-27032437   1/1           1s         2m34s
+hello-27032438   1/1           1s         94s
+hello-27032439   1/1           1s         34s
+```
   
-  可以看到，每隔60s就会创建一个容器。
+可以看到，每隔60s就会创建一个容器。
 
-- 获取其中一个job的Pod`$ kubectl get pods --selector=job-name=hello-1584515400 --output=jsonpath={.items[*].metadata.name}`
+获取其中一个job的Pod `kubectl get pods --selector=job-name=hello-27032439 --output=jsonpath={.items[*].metadata.name}`
+
+执行上述命令后，会输出对应pod的名字
   
-  ```command
-  hello-1584515400-hh6g2
-  ```
+```command
+hello-27032439-cxt45
+```
 
-- 查看Pod输出`$ kubectl logs hello-1584515400-hh6g2`
+查看Pod输出 `kubectl logs hello-27032439-cxt45`
 
-  ```command
-  Wed Mar 18 07:10:13 UTC 2020
-  Hello from the Kubernetes cluster
-  ```
+```command
+Tue May 25 12:59:24 UTC 2021
+Hello from the Kubernetes cluster
+```
 
-- 最后，记得将计划任务删除，否则会一直运行。`$ kubectl delete cronjob hello`
+- 最后，记得将计划任务删除，否则会一直运行。`kubectl delete -f cron.yml`
 
-#### 其他Controller
+### 其他Controller
 
-##### DaemonSet
+#### DaemonSet
 
 DaemonSet用于管理在集群中每个Node上运行且仅运行一份Pod的副本实例，一般来说，在以下情形中会使用到DaemonSet：
 
@@ -504,11 +557,11 @@ DaemonSet用于管理在集群中每个Node上运行且仅运行一份Pod的副�
 - 在每个Node上都运行一个日志采集程序
 - 在每个Node上都运行一个性能监控程序
 
-##### StatefulSet
+#### StatefulSet
 
 StatefulSet用来搭建**有状态**的应用集群（比如MySQL、MongoDB等）。Kubernetes会保证StatefulSet中各应用实例在创建和运行的过程中，都具有固定的身份标识和独立的后端存储；还支持在运行时对集群规模进行扩容、保障集群的高可用等功能。
 
-### Service
+## Service
 
 Service可以将运行在一组Pods上的应用程序公开为网络服务，简单地实现服务发现、负载均衡等功能。
 
@@ -521,17 +574,19 @@ k8s的Pods具有自己的生命周期，同一时刻运行的Pod集合与稍后�
 >- LoadBalancer：使用云提供商的负载局衡器，可以向外部暴露服务。外部的负载均衡器可以路由到 NodePort 服务和 ClusterIP 服务。仅作了解。
 >- ExternalName：通过返回 CNAME 和它的值，可以将服务映射到 externalName 字段的内容（例如，在集群内查找my-service.my-namespace.svc时，k8s DNS service只返回foo.bar.example.com这样的CNAME record）。没有任何类型代理被创建，网络流量发生在DNS层面。由于ExternalName要求kube-dns而我们使用的是coredns，也只作了解。
 
-#### 创建Service
+### 创建Service
 
 Service通常通过selector来选择被访问的Pod。
 
 继续沿用我们之前所创建的nginx-test。查看Pod详细信息：
-`~$ sudo kubectl describe pod nginx-test`
+
+`kubectl describe pod nginx-test-6478975c66-jtd2r`
 
 在Labels栏能看到如下的标签（selector使用该标签来选择被访问的Pod）：
 
-```command
-run=nginx-test
+```
+Labels:       pod-template-hash=6478975c66
+              run=nginx-test
 ```
 
 因此可以通过下列yaml文件创建Service (将下面的内容写入`nginx-service.yaml`)
@@ -542,17 +597,13 @@ run=nginx-test
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-test
+  name: nginx-test-service
   labels:
-    run: nginx-test
+    svc: nginx-test-svc
 spec:
   ports:
-  # type: NodePort
-  - port: 80
-    #targetPort: 80
-    #nodePort: 32180
-    protocol: TCP
-    #name: http
+    - port: 80
+      protocol: TCP
   selector:
     run: nginx-test
 ```
@@ -564,26 +615,27 @@ spec:
 
 创建Service
 
-```command
-~$ sudo kubectl apply -f nginx-service.yaml
-service/nginx-test created
+```
+kubectl apply -f nginx-service.yaml
 ```
 
-查看service
+查看service `kubectl get svc`
 
-```command
-~$ sudo kubectl get svc nginx-test
-NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
-nginx-test   ClusterIP   10.97.91.103   <none>        80/TCP    3m52s
+```
+NAME                 TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+kubernetes           ClusterIP   10.43.0.1      <none>        443/TCP   15d
+nginx-test-service   ClusterIP   10.43.149.18   <none>        80/TCP    11s
 ```
 
-验证是否可以通过Service访问Pod
+可以看到，第二个就是我们刚才创建的service，其中，它有一个cluster-ip：`10.43.149.18`。
 
-```command
-~$ curl 10.97.91.103
+验证是否可以通过Service访问Pod，注意，上述这个IP是“cluster-ip”，也就是说，它是一个集群内ip，因此，只能在集群中的机器上访问：
+
+```bash
+curl 10.43.149.18
 ```
 
-```command
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -611,34 +663,35 @@ Commercial support is available at
 </html>
 ```
 
-查看当前两个Pods的IP地址
+查看当前三个Pods的IP地址 `kubectl get pod -l run=nginx-test -o wide`
 
 ```command
-~$ sudo kubectl get pod -l run=nginx-test -o wide
-NAME                          READY   STATUS    RESTARTS   AGE   IP             NODE   NOMINATED NODE   READINESS GATES
-nginx-test-79cd7499bf-fncgr   1/1     Running   0          47m   10.244.3.91    k4     <none>           <none>
-nginx-test-79cd7499bf-pjbxr   1/1     Running   0          47m   10.244.4.177   k5     <none>           <none>
+NAME                          READY   STATUS    RESTARTS   AGE     IP           NODE         NOMINATED NODE   READINESS GATES
+nginx-test-6478975c66-jtd2r   1/1     Running   0          5h48m   10.42.0.15   k8s-master   <none>           <none>
+nginx-test-6478975c66-n7mmj   1/1     Running   0          5h22m   10.42.0.16   k8s-master   <none>           <none>
+nginx-test-6478975c66-jndr8   1/1     Running   0          5h22m   10.42.0.17   k8s-master   <none>           <none>
 ```
 
-删除这两个Pods并等待Deployment重新创建
+删除这三个Pods并等待Deployment重新创建
 
 ```command
-~$ sudo kubectl delete pods -l run=nginx-test
+~$ kubectl delete pods -l run=nginx-test
 pod "nginx-test-79cd7499bf-vrlss" deleted
 pod "nginx-test-79cd7499bf-zd42s" deleted
-~$ sudo  kubectl get pod -l run=nginx-test -o wide
-NAME                          READY   STATUS    RESTARTS   AGE   IP             NODE   NOMINATED NODE   READINESS GATES
-nginx-test-79cd7499bf-2jl7j   1/1     Running   0          27s   10.244.1.128   k3     <none>           <none>
-nginx-test-79cd7499bf-ctxrd   1/1     Running   0          27s   10.244.4.179   k5     <none>           <none>
+~$ kubectl get pod -l run=nginx-test -o wide
+NAME                          READY   STATUS    RESTARTS   AGE   IP            NODE       NOMINATED NODE   READINESS GATES
+nginx-test-6478975c66-7ktl4   1/1     Running   0          21s   10.42.1.109   k8s-node   <none>           <none>
+nginx-test-6478975c66-cffrr   1/1     Running   0          21s   10.42.1.111   k8s-node   <none>           <none>
+nginx-test-6478975c66-jssj4   1/1     Running   0          21s   10.42.1.110   k8s-node   <none>           <none>
 ```
 
-可以看到重新创建的两个Pods的IP地址已经发生变化，再次通过Service，仍能访问对应的Pod
+可以看到重新创建的三个Pods的IP地址已经发生变化，再次通过Service，仍能访问对应的Pod
 
-```command
-~$ curl 10.97.91.103
+```bash
+curl 10.97.91.103
 ```
 
-```command
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -666,7 +719,7 @@ Commercial support is available at
 </html>
 ```
 
-#### 暴露端口
+### 暴露端口
 
 之前创建的Service并没有指定类型，因此为默认的ClusterIP，只能在集群内部访问。如果需要将服务端口暴露在公网，可以使用NodePort类型。
 
@@ -678,43 +731,34 @@ Commercial support is available at
 apiVersion: v1
 kind: Service
 metadata:
-  name: nginx-test
+  name: nginx-test-service
   labels:
-    run: nginx-test
+    svc: nginx-test-svc
 spec:
   type: NodePort
   ports:
-  - port: 80
-    #targetPort: 80
-    nodePort: 32180
-    protocol: TCP
-    #name: http
+    - port: 80
+      nodePort: 32180
+      protocol: TCP
+      name: http
   selector:
     run: nginx-test
 ```
 
-修改Service
+修改Service `kubectl apply -f nginx-service.yaml`
+
+查看service `kubectl get svc nginx-test-service`
 
 ```command
-~$ sudo kubectl apply -f nginx-service.yaml
-service/nginx-test configured
-```
-
-查看service
-
-```command
-~$ sudo kubectl get svc nginx-test
-NAME         TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
-nginx-test   NodePort   10.111.21.208   <none>        80:32180/TCP   74s
+NAME                 TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)        AGE
+nginx-test-service   NodePort   10.43.115.127   <none>        80:32180/TCP   17s
 ```
 
 此时，从集群内任一节点IP的32180端口均可访问到某个Pod的80端口。
 
-```command
-~$ curl <yourIP>:32180
-```
+比如，你的两台虚拟机的IP分别为`10.255.9.80`和`10.255.9.81`，那么，你在校园网内的任何一台机器上，执行`curl http://10.255.9.80:32180`或者`curl http://10.255.9.81:32180`，都能得到如下的输出：
 
-```command
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -742,73 +786,82 @@ Commercial support is available at
 </html>
 ```
 
+或者在浏览器中也可以访问：
+
+![](img/2021-05-27-14-46-37.png)
+
 可以尝试删除Pods并等待新的Pods创建完成，仍可以通过上述方式访问。
 
-### 滚动更新
+## 滚动更新
 
 为了在更新服务的同时不中断服务，kubectl支持**滚动更新**，它一次更新一个Pod，而不是停止整个服务。
 
 使用Deployment可以查看升级详细进度和状态，当升级出现问题的时候，可以使用回滚操作回滚到指定的版本，每一次对Deployment的操作，都会保存下来，方便进行回滚操作，另外对于每一次升级都可以随时暂停和启动，拥有多种升级方案：**Recreate**删除现在的Pod，重新创建；**RollingUpdate**滚动升级，逐步替换现有Pod，对于生产环境的服务升级，显然这是一种最好的方式。
 
-- 创建Deployment
+创建Deployment
 
-  ```yaml
-  apiVersion: extensions/v1beta1
-  kind: Deployment
-  metadata:
-    name: nginx
-  spec:
-    replicas: 3
-    template:
-      metadata:
-        labels:
-          app: nginx
-      spec:
-        containers:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
         - name: nginx
-          image: softbuaa/nginx:1.16
-  ```
+          image: docker.scs.buaa.edu.cn/softbuaa/nginx:1.16
+```
+
+使用`kubectl create -f nginx-deploy.yaml`，由于`replicas`为3，因此会创建三个Pod
+
+```
+NAME                          READY   STATUS        RESTARTS   AGE
+nginx-77bf7f47fd-9q7fw        1/1     Running       0          80s
+nginx-77bf7f47fd-567nf        1/1     Running       0          80s
+nginx-77bf7f47fd-k795n        1/1     Running       0          80s
+```
 
 此时尝试访问Nginx主页，会看到版本提示。
 
 > 注意：使用的镜像并不是官方原版镜像，而是修改了默认的index.html后的镜像。访问Nginx主页，既可以自己创建一个service进行访问，也可以查看pod的IP后直接在虚拟机上使用curl访问。
 
-使用`kubectl create -f nginx-deploy.yaml`，由于`replicas`为3，因此会创建三个Pod
-
-```command
-$ kubectl get pod
-NAME                      READY   STATUS    RESTARTS   AGE
-nginx-5dc5b64675-65xk4    1/1     Running   0          7s
-nginx-5dc5b64675-6cxp9    1/1     Running   0          7s
-nginx-5dc5b64675-tvckw    1/1     Running   0          7s
-```
-
-- 通过配置文件更新：
+通过配置文件更新：
   
-  在刚刚的配置文件中将镜像修改为`softbuaa/nginx:1.17`，然后在`spec`中添加滚动升级策略，改动后如下
+在刚刚的配置文件中将镜像修改为`softbuaa/nginx:1.17`，然后在`spec`中添加滚动升级策略，改动后如下
 
-  ```yaml
-  apiVersion: extensions/v1beta1
-  kind: Deployment
-  metadata:
-    name: nginx
-  spec:
-    minReadySeconds: 5
-    strategy:
-      type: RollingUpdate
-      rollingUpdate:
-        maxSurge: 1
-        maxUnavailable: 1
-    replicas: 3
-    template:
-      metadata:
-        labels:
-          app: nginx
-      spec:
-        containers:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  minReadySeconds: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  replicas: 3
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
         - name: nginx
-          image: softbuaa/nginx:1.17
-  ```
+          image: docker.scs.buaa.edu.cn/softbuaa/nginx:1.17
+```
 
 - minReadySeconds:
   - Kubernetes在等待设置的时间后才进行升级
@@ -822,12 +875,11 @@ nginx-5dc5b64675-tvckw    1/1     Running   0          7s
   - 当maxSurge不为0时，该值也不能为0
   - 例如：maxUnavaible=1，则表示Kubernetes整个升级过程中最多会有1个POD处于无法服务的状态。
 
-然后执行命令:
+然后执行命令 `kubectl apply -f nginx-deploy.yaml`
 
-```command
-$ kubectl apply -f nginx-deploy.yaml
-deployment.extensions/nginx configured
-$ kubectl rollout status deploy/nginx
+接着查看deployment的升级情况 `kubectl rollout status deploy/nginx`
+
+```
 Waiting for deployment "nginx" rollout to finish: 2 out of 3 new replicas have been updated...
 Waiting for deployment "nginx" rollout to finish: 2 out of 3 new replicas have been updated...
 Waiting for deployment "nginx" rollout to finish: 2 out of 3 new replicas have been updated...
@@ -838,21 +890,28 @@ deployment "nginx" successfully rolled out
 
 执行`kubectl rollout status deploy/nginx`可以实时观测滚动更新的进度，在更新过程中，可以使用`kubectl rollout pause(resume) deployment <deployment>`来暂停(继续)更新
 
-更新结束后，查看Replica Set的状态
+更新结束后，查看Replica Set的状态 `kubectl get replicaset`
 
-```command
-NAME                DESIRED   CURRENT   READY   AGE
-nginx-5dc5b64675    0         0         0       23m
-nginx-64c9fc7644    3         3         3       7m25s
+```
+NAME               DESIRED   CURRENT   READY   AGE
+nginx-77bf7f47fd   0         0         0       8m28s
+nginx-5b8c7c5877   3         3         3       3m7s
 ```
 
 可以看到旧的Replica Set和新的Replica Set的状态，此时查看任意一个Pod的镜像信息
 
-```command
-$ k describe pod nginx-64c9fc7644-hbfpt
-...
-Image:          nginx:1.17
-...
+```
+
+......
+
+Containers:
+  nginx:
+    Container ID:   containerd://0790761a1248fcb4dc8d9432aebeb37ff7ee96b7267a83fe0172812323764e85
+    Image:          docker.scs.buaa.edu.cn/softbuaa/nginx:1.17
+    Image ID:       docker.scs.buaa.edu.cn/softbuaa/nginx@sha256:6f3b7f003243dca41dae46fe442e826df08e056a76cdd3e11e6f41cdaef
+
+......
+
 ```
 
 其中image的信息已经得到改动了。
@@ -861,37 +920,35 @@ Image:          nginx:1.17
 
 - 回滚Deployment
 
-首先，查看Deployment的升级历史
+首先，查看Deployment的升级历史 `kubectl rollout history deploy/nginx`
 
-```command
-$ kubectl rollout history deploy/nginx
-deployment.extensions/nginx
+```
+deployment.apps/nginx
 REVISION  CHANGE-CAUSE
-3         <none>
-4         <none>
+1         <none>
+2         <none>
 ```
 
-其中，`3`和`4`为历史版本，可以带上参数来查看该次的版本信息
+其中，`1`和`2`为历史版本，可以带上参数来查看该次的版本信息 `kubectl rollout history deploy/nginx --revision=1`
 
-```command
-$ kubectl rollout history deploy/nginx --revision=3
-deployment.extensions/nginx with revision #3
+```
+deployment.apps/nginx with revision #1
 Pod Template:
-  Labels: app=nginx
-  pod-template-hash=5dc5b64675
+  Labels:	app=nginx
+	pod-template-hash=77bf7f47fd
   Containers:
    nginx:
-    Image:  nginx:1.16
-    Port: <none>
-    Host Port:  <none>
-    Environment:  <none>
-    Mounts: <none>
-  Volumes: <none>
+    Image:	docker.scs.buaa.edu.cn/softbuaa/nginx:1.16
+    Port:	<none>
+    Host Port:	<none>
+    Environment:	<none>
+    Mounts:	<none>
+  Volumes:	<none>
 ```
 
 可以使用`kubectl rollout undo deploy/nginx`来回退到上一个版本，也可以在后面加上参数`--to-revision=3`来回退到`3`所指定的历史版本
 
-### 数据管理
+## 数据管理
 
 Pod中的数据默认并没有进行持久化，它们会随着Pod的销毁而一同被消灭。 我们都知道，Pod并不总是稳定可靠的，它有可能会被频繁销毁并重建，我们并不希望重要的数据（例如MySQL中的数据）跟着Pod一同被销毁。这就需要引入一种持久的存储系统。
 
@@ -904,7 +961,7 @@ Kubernetes提供了两种储存介质，它们是Volume和Persistent Volume。�
   - hostPath(Persistent Volume)
   - nfs(Persistent Volume)
 
-#### 使用hostPath
+### 使用hostPath
 
 使用hostPath，将容器的`/storage`目录挂载到容器所在主机的`/home/storage`目录下
 
@@ -916,7 +973,7 @@ metadata:
 spec:
   containers:
     - name: busybox
-      image: registry.cn-hangzhou.aliyuncs.com/google_containers/busybox:1.24
+      image: docker.scs.buaa.edu.cn/busybox:1.24
       volumeMounts:
         - name: storage
           mountPath: /storage #将容器的 /storage 目录作为挂载点
@@ -928,16 +985,16 @@ spec:
   volumes:
     - name: storage
       hostPath:
-        path: /home/storage # 挂载到主机的 /home/storage目录下
+        path: /home/buaa/storage # 挂载到主机的 /home/buaa/storage目录下
 ```
 
 >- volumeMounts: container中需要被mount的目录
 >- volumes: 根据name来对应container中的volumeMounts并选择mount到本地的路径
 
-使用`kubectl get pod -o wide`可查看pod所在主机，进入主机查看`/home/storage`下的文件
+使用`kubectl get pod -o wide`可查看pod所在主机，进入主机查看`/home/buaa/storage`下的文件
 
 ```command
-$ ls /home/storage
+$ ls /home/buaa/storage
 test.txt
 
 $ cat /home/storage/test.txt
@@ -946,7 +1003,7 @@ test file
 
 hostPath的缺点为若使用一个pod需要跨主机到另外一台主机上重建，数据将会丢失，这时我们需要PersistentVolume来进行持久化
 
-#### 使用PV和PVC
+### 使用PV和PVC
 
 两者的关系为：PV用于定义存储，而PVC用于向已有存储申请存储空间
 
@@ -956,54 +1013,73 @@ hostPath的缺点为若使用一个pod需要跨主机到另外一台主机上重
 
 nfs需要一个server端，一个client端，对于实验的Kubernetes集群来说，可将Master节点作为server同时为client(因为设置了Master节点开启工作负载)，其他所有从节点为client。
 
-- 在nfs服务器上安装nfs-kernel-server
-  `$ apt install nfs-kernel-server`
-  首先创建一个用于存放数据的文件夹
-  `$ mkdir /data`
-  接下来修改nfs的配置文件
+#### 配置nfs server端
 
-  ```command
-  $ vim /etc/exports
+在nfs服务器上安装nfs-kernel-server （理论上实验用的机器已经安装，如果没有，请自行联网安装）
 
-  #添加如下内容
-  /data *(rw,sync,no_root_squash)
-  ```
+```bash
+apt install nfs-kernel-server
+```
 
-  其中：
+首先创建一个用于存放数据的文件夹
 
-  >
-  >   - /data：   共享的目录
-  >   - \* ：   谁可以访问(这里设置为所有人能访问)
-  >   - (rw,sync,no_root_squash): 权限设置
-  >     - rw: 能读写
-  >     - sync: 同步
-  >     - no_root_squash: 不降低root用户的权限(不安全，不过本次实验选择这样做更方便)
+```bash
+mkdir /data
+```
 
-  重启nfs服务：
-  `$ service nfs-kernel-server restart`
+接下来修改nfs的配置文件
 
-- 在**所有节点**安装nfs-common
+```command
+$ vim /etc/exports
 
-  `$ apt install nfs-common`
+#添加如下内容
+/data *(rw,sync,no_root_squash)
+```
 
-  安装好后可使用如下指令查看是否能看到nfs服务器的挂载点(x.x.x.x为nfs服务器的ip地址)
+其中：
 
-  ```command
-  $ showmount -e x.x.x.x
-  Export list for x.x.x.x:
-  /data *
-  ```
+>
+>   - /data：   共享的目录
+>   - \* ：   谁可以访问(这里设置为所有人能访问)
+>   - (rw,sync,no_root_squash): 权限设置
+>     - rw: 能读写
+>     - sync: 同步
+>     - no_root_squash: 不降低root用户的权限(不安全，不过本次实验选择这样做更方便)
 
-  这时候说明已经能够访问到这个挂载点了，使用以下指令将挂载点挂载到本地的`/mnt`路径下(x.x.x.x同样为nfs服务器地址)
+重启nfs服务：
 
-  `$ mount x.x.x.x:/data /mnt`
+```bash
+service nfs-kernel-server restart
+```
 
-  无提示则说明挂载成功，此时在nfs客户端上进行测试
-  
-  `$ cd /mnt`
-  `$ touch success`
+在**所有节点**安装nfs-common （理论上实验用的机器已经安装，如果没有，请自行联网安装）
 
-  若看到nfs服务器上`/data`目录中出现`success`文件，则说明nfs已经部署成功，将集群所有机器都进行挂载(包括服务器本机)，在一个挂载点删除后，所有客户端和服务器也会同步删除
+```bash
+apt install nfs-common
+```
+
+安装好后可使用如下指令查看是否能看到nfs服务器的挂载点(x.x.x.x为nfs服务器的ip地址)
+
+```command
+$ showmount -e x.x.x.x
+Export list for x.x.x.x:
+/data *
+```
+
+这时候说明已经能够访问到这个挂载点了，使用以下指令将挂载点挂载到本地的`/mnt`路径下(x.x.x.x同样为nfs服务器地址)
+
+```bash
+mount x.x.x.x:/data /mnt
+```
+
+无提示则说明挂载成功，此时在nfs客户端上进行测试
+
+`$ cd /mnt`
+`$ touch success`
+
+若看到nfs服务器上`/data`目录中出现`success`文件，则说明nfs已经部署成功，将集群所有机器都进行挂载(包括服务器本机)，在一个挂载点删除后，所有客户端和服务器也会同步删除
+
+#### 创建PV
 
 准备好nfs环境后，创建PersistentVolume(pv)
 
@@ -1040,7 +1116,7 @@ spec:
 ```command
 $ kubectl get pv
 NAME    CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   REASON   AGE
-nfspv  1Gi        RWO            Retain           Available           nfs                     3s
+nfspv   1Gi        RWO            Retain           Available           nfs                     3s
 ```
 
 接下来创建PVC
@@ -1123,9 +1199,10 @@ SUCCESS
 
 动态PV是指使用PVC之前不需要创建PV，而是在PVC申请存储空间的时候自动根据条件创建，也叫做动态供给（Dynamical Provision）。动态供给的基础是StorageClass，详细可参考：[StorageClass](https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource)
 
-### 动手做
+## 动手做
 
 - 复现手册中提到的Kubernetes操作，并理解操作所涉及到的Kubernetes特性/功能
+
 - 部署nginx服务
   - 创建nginx的Deployment
   - 复现故障转移和伸缩功能
@@ -1148,11 +1225,11 @@ SUCCESS
       > 要创建的文件位于`/usr/share/nginx/html/service.html`
       >容器内并未安装文本编辑器，可以通过`echo`和`cat`命令对`service.html`进行编辑，如
       >
-      > ```command
+      > ```
       > echo 'single string' > service.html
       > ```
       >
-      > ```command
+      > ```
       > cat > service.html <<EOF
       > complicated
       > string
@@ -1163,8 +1240,9 @@ SUCCESS
       > ```
 
   - 尝试使用滚动更新，对比前后主页版本 (可以自行创建Service通过代理访问网页，也可以直接curl ClusterIP访问。**注意浏览器缓存影响，学校的网页代理也会保存一段时间的缓存**)
+
 - 部署持久化服务
   - 在集群中部署nfs环境
   - 创建pv和pvc
-  - 创建mysql的Deployment和Service，确保绑定了pvc (**mysql的mount目录为/var/lib/mysql**)
+  - 创建mysql的Deployment和Service，确保绑定了pvc (**mysql的mount目录为/var/lib/mysql**)，创建MySQL时，可以使用镜像`docker.scs.buaa.edu.cn/mysql:8`
   - 查看nfs server的mount目录，mysql数据文件已经写入

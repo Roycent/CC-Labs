@@ -48,11 +48,11 @@
 
 ### [实验一 Docker的安装使用](/CCLab1-Docker.md)
 
-### [实验二 Kubernetes的安装及集群初始化](/CCLab2-SaaS.md)
+### [实验二 构建简易的SaaS平台](/CCLab2-SaaS.md)
 
-### [实验三 Kubernetes的基本使用](/CCLab3-Kubernetes_Init.md)
+### [实验三 Kubernetes的安装及集群初始化](./CCLab3-Kubernetes_Init.md)
 
-### [实验四 构建简易的SaaS平台](/CCLab4-Kubernetes.md)
+### [实验四 Kubernetes的基本使用](./CCLab4-Kubernetes.md)
 
 ### [常见问题解答](/FAQ.md)
 
