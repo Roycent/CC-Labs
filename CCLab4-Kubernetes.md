@@ -1158,7 +1158,7 @@ metadata:
 spec:
   containers:
   - name: test-pod
-    image: registry.cn-hangzhou.aliyuncs.com/google_containers/busybox:1.24
+    image: docker.scs.buaa.edu.cn/busybox:1.24
     command:
       - "/bin/sh"
     args:
